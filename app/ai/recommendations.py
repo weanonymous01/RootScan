@@ -66,3 +66,4 @@ Structure your output into:
             return {"recommendation_guide": content}
         except Exception as e:
             return {"error": str(e)}
+

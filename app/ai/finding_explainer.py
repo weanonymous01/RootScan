@@ -72,3 +72,4 @@ Provide a detailed technical breakdown:
                 "beginner": f"Failed to generate explanation: {e}",
                 "technical": f"AI inference error: {e}"
             }
+
