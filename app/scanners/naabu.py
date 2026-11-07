@@ -22,7 +22,7 @@ class NaabuAdapter(BaseScannerAdapter):
         return "naabu"
 
     def build_command(self, target: str, options: Dict[str, Any], output_path: Optional[Path] = None) -> List[str]:
-        args = [self.binary_name, "-host", target, "-json", "-silent"]
+        args = [self.binary_name, "-host", target, "-json", "-silent", "-no-stdin", "-duc"]
 
         port_range = options.get("port_range", "top100")
         if port_range == "top100":

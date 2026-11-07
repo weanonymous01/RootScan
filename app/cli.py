@@ -212,11 +212,13 @@ def cli_history():
 async def cli_tools():
     """Check availability of registered tools."""
     print_banner()
-    console.print("[bold green][+][/bold green] [bold white]SECURITY SCANNER REGISTRY HEALTH CHECK[/bold white]\n")
+    from app.core.tool_installer import get_current_os_and_arch
+    os_name, arch = get_current_os_and_arch()
+    console.print(f"[bold green][+][/bold green] [bold white]SECURITY SCANNER REGISTRY HEALTH CHECK[/bold white] [dim]({os_name.title()} {arch})[/dim]\n")
 
     adapters = [
-        NmapAdapter(), NucleiAdapter(), HttpxAdapter(),
-        RustScanAdapter(), NaabuAdapter(), WhatWebAdapter(), NiktoAdapter()
+        RustScanAdapter(), NucleiAdapter(), HttpxAdapter(), NaabuAdapter(),
+        NmapAdapter(), WhatWebAdapter(), NiktoAdapter()
     ]
 
     for adp in adapters:
@@ -224,7 +226,14 @@ async def cli_tools():
             ver = await adp.get_version()
             console.print(f"[bold green][+][/bold green] {adp.name:<10} : [bold green]INSTALLED[/bold green] [dim]({ver[:35]})[/dim]")
         else:
-            console.print(f"[bold red][-][/bold red] {adp.name:<10} : [bold red]NOT FOUND[/bold red] [dim](Run install.sh to install)[/dim]")
+            if os_name == "windows":
+                if adp.name == "Nmap":
+                    hint = "Optional: Port scanning accelerated by native RustScan engine; or 'winget install Insecure.Nmap'"
+                else:
+                    hint = "Optional: Web scanning covered by native HTTPX & Nuclei engines"
+            else:
+                hint = f"Optional: install via 'sudo apt install {adp.binary_name}'"
+            console.print(f"[bold yellow][*][/bold yellow] {adp.name:<10} : [yellow]NOT FOUND[/yellow] [dim]({hint})[/dim]")
 
 
 async def cli_ai_test():

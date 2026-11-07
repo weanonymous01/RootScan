@@ -11,6 +11,8 @@ from app.core.tool_installer import (
     PROJECT_ROOT,
     TOOL_RELEASES,
     ensure_bin_in_path,
+    get_current_os_and_arch,
+    extract_binary_from_archive,
 )
 
 
@@ -22,9 +24,15 @@ class TestToolInstaller(unittest.TestCase):
         self.assertTrue(BIN_DIR.exists())
         self.assertIn(str(BIN_DIR), os.environ.get("PATH", ""))
 
+    def test_os_and_arch_detection(self):
+        os_name, arch = get_current_os_and_arch()
+        self.assertIn(os_name, ("windows", "linux", "darwin"))
+        self.assertIn(arch, ("amd64", "arm64"))
+
     def test_tool_releases_schema(self):
-        for os_name, tools in TOOL_RELEASES.items():
-            self.assertIn(os_name, ("windows", "linux"))
+        for (os_name, arch), tools in TOOL_RELEASES.items():
+            self.assertIn(os_name, ("windows", "linux", "darwin"))
+            self.assertIn(arch, ("amd64", "arm64"))
             for tool_name, meta in tools.items():
                 self.assertIn("binary", meta)
                 self.assertIn("url", meta)

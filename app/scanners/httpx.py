@@ -35,6 +35,8 @@ class HttpxAdapter(BaseScannerAdapter):
         args = [
             self.binary_name,
             "-u", target,
+            "-no-stdin",
+            "-timeout", "5",
             "-title",
             "-tech-detect",
             "-status-code",
