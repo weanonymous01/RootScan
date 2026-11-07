@@ -16,3 +16,4 @@ Your synthesized report MUST follow this exact 11-part structure:
 9. REMEDIATION PRIORITY: Step-by-step defensive remediation guide.
 10. ASSESSMENT LIMITATIONS: Disclosure of testing boundaries, unvalidated items, and missing scans.
 11. FINAL AI CONCLUSION: Definitive closing assessment.
+

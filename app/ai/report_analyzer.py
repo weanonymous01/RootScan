@@ -135,3 +135,4 @@ class ReportAnalyzer:
         except Exception as e:
             print(f"[!] Synthesis failed: {e}")
             return None
+

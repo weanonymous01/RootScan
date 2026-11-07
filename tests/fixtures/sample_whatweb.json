@@ -1,0 +1,22 @@
+[
+  {
+    "target": "https://example.com",
+    "http_status": 200,
+    "plugins": {
+      "HTTPServer": {
+        "version": ["1.18.0"],
+        "string": ["nginx/1.18.0"]
+      },
+      "OpenSSL": {
+        "version": ["1.1.1f"]
+      },
+      "HTML5": {},
+      "JQuery": {
+        "version": ["3.6.0"]
+      },
+      "Bootstrap": {
+        "version": ["5.1.3"]
+      }
+    }
+  }
+]

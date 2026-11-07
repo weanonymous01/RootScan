@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<nmaprun scanner="nmap" args="nmap -sV -Pn --open -p 22,80,443,3306 192.168.1.100" version="7.94">
+<host>
+  <status state="up"/>
+  <address addr="192.168.1.100" addrtype="ipv4"/>
+  <ports>
+    <port protocol="tcp" portid="22">
+      <state state="open"/>
+      <service name="ssh" product="OpenSSH" version="8.9p1" extrainfo="Ubuntu-3ubuntu0.6"/>
+    </port>
+    <port protocol="tcp" portid="80">
+      <state state="open"/>
+      <service name="http" product="nginx" version="1.18.0"/>
+      <script id="http-title" output="Welcome to Corporation Portal"/>
+    </port>
+    <port protocol="tcp" portid="443">
+      <state state="open"/>
+      <service name="https" product="nginx" version="1.18.0" tunnel="ssl"/>
+      <script id="ssl-cert" output="Subject: commonName=internal.portal/organizationName=Corp"/>
+    </port>
+    <port protocol="tcp" portid="3306">
+      <state state="open"/>
+      <service name="mysql" product="MySQL" version="8.0.35"/>
+    </port>
+  </ports>
+</host>
+</nmaprun>

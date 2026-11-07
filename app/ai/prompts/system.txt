@@ -10,3 +10,4 @@ CRITICAL INSTRUCTIONS & GUARDRAILS:
    - EXPLOIT INTELLIGENCE: Known public PoCs or in-the-wild exploitation trends.
    - ACTIVE EXPLOITATION: Never declare a target compromised unless explicit proof of compromise exists.
 5. Provide actionable, defensive remediation guidance for every finding.
+

@@ -53,7 +53,6 @@ RUSTSCAN_CSS = """
 Screen {
     background: #080c10;
     color: #c9d1d9;
-    font-family: monospace;
 }
 
 Header {

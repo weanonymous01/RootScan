@@ -12,3 +12,4 @@ Instructions:
 3. Highlight any configuration weaknesses or exposure risks.
 4. Keep finding identifiers consistent.
 5. Return a concise, structured section summary.
+
