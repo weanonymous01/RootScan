@@ -1,0 +1,40 @@
+[app]
+name = "RootScan"
+version = "1.0.0"
+tagline = "Scan. Discover. Understand."
+data_dir = "data"
+database_path = "data/database/rootscan.db"
+scans_dir = "data/scans"
+
+[ui]
+theme = "dark-navy"
+primary_color = "#00d4aa"
+secondary_color = "#3b82f6"
+background_color = "#0b0f19"
+
+[security]
+require_scope_confirmation = true
+allow_private_ranges_default = false
+blocked_ip_ranges = [
+    "127.0.0.0/8",         # Loopback
+    "169.254.0.0/16",       # Link-local / Cloud metadata (AWS/GCP/Azure)
+    "0.0.0.0/8",           # Current network
+    "224.0.0.0/4",         # Multicast
+    "240.0.0.0/4",         # Reserved
+    "::1/128",             # IPv6 Loopback
+    "fe80::/10"            # IPv6 Link-local
+]
+
+[ai]
+provider = "nvidia_nim"
+default_model = "meta/llama-3.3-70b-instruct"
+base_url = "https://integrate.api.nvidia.com/v1"
+temperature = 0.2
+max_tokens = 4096
+timeout_seconds = 60
+
+[execution]
+default_timeout_seconds = 900
+max_concurrent_scans = 2
+max_tool_workers = 4
+

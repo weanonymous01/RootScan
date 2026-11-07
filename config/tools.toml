@@ -1,0 +1,82 @@
+# RootScan Tool Registry Configuration
+
+[tools.nmap]
+name = "Nmap"
+binary = "nmap"
+purpose = "Network exploration, port scanning, and service detection"
+category = "port_scan"
+version_args = ["--version"]
+min_version = "7.80"
+timeout_seconds = 600
+is_primary = true
+
+[tools.rustscan]
+name = "RustScan"
+binary = "rustscan"
+purpose = "High-speed port discovery"
+category = "port_scan"
+version_args = ["--version"]
+min_version = "2.0.0"
+timeout_seconds = 180
+is_primary = false
+
+[tools.naabu]
+name = "Naabu"
+binary = "naabu"
+purpose = "Fast port discovery"
+category = "port_scan"
+version_args = ["-version"]
+min_version = "2.1.0"
+timeout_seconds = 240
+is_primary = false
+
+[tools.httpx]
+name = "httpx"
+binary = "httpx"
+purpose = "HTTP service probing and technology detection"
+category = "service_probing"
+version_args = ["-version"]
+min_version = "1.3.0"
+timeout_seconds = 180
+is_primary = true
+
+[tools.whatweb]
+name = "WhatWeb"
+binary = "whatweb"
+purpose = "Web technology fingerprinting"
+category = "service_probing"
+version_args = ["--version"]
+min_version = "0.5.0"
+timeout_seconds = 180
+is_primary = false
+
+[tools.dnsx]
+name = "dnsx"
+binary = "dnsx"
+purpose = "DNS resolution and analysis"
+category = "recon"
+version_args = ["-version"]
+min_version = "1.1.0"
+timeout_seconds = 120
+is_primary = true
+
+[tools.nuclei]
+name = "Nuclei"
+binary = "nuclei"
+purpose = "Vulnerability detection using YAML templates"
+category = "vulnerability"
+version_args = ["-version"]
+min_version = "3.0.0"
+timeout_seconds = 600
+is_primary = true
+
+[tools.nikto]
+name = "Nikto"
+binary = "nikto"
+purpose = "Web server vulnerability and misconfiguration scanner"
+category = "vulnerability"
+version_args = ["-Version"]
+min_version = "2.1.6"
+timeout_seconds = 600
+is_primary = false
+

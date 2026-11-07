@@ -1,0 +1,75 @@
+# RootScan Assessment Profiles
+
+[profiles.quick]
+name = "Quick Assessment"
+description = "Fast reconnaissance, top 100 ports, basic service detection, and essential vulnerability checks."
+port_range = "top100"
+rate_limit = 1000
+timeout_seconds = 300
+stages = [
+    "target_validation",
+    "reconnaissance",
+    "port_discovery",
+    "service_enumeration",
+    "vulnerability_assessment",
+    "normalization",
+    "ai_analysis"
+]
+tools = ["dnsx", "rustscan", "nmap", "httpx", "nuclei"]
+nuclei_severity = ["critical", "high"]
+
+[profiles.standard]
+name = "Standard Assessment"
+description = "Balanced assessment: comprehensive DNS/RDAP recon, top 1000 ports, full service fingerprinting, and standard vulnerability scanning."
+port_range = "top1000"
+rate_limit = 1500
+timeout_seconds = 900
+stages = [
+    "target_validation",
+    "reconnaissance",
+    "port_discovery",
+    "service_enumeration",
+    "conditional_assessment",
+    "vulnerability_assessment",
+    "normalization",
+    "ai_analysis"
+]
+tools = ["dnsx", "nmap", "httpx", "whatweb", "nuclei"]
+nuclei_severity = ["critical", "high", "medium"]
+
+[profiles.deep]
+name = "Deep Assessment"
+description = "Thorough security audit: full port spectrum (1-65535), aggressive service detection, web server probing, and comprehensive vulnerability templates."
+port_range = "1-65535"
+rate_limit = 2000
+timeout_seconds = 2400
+stages = [
+    "target_validation",
+    "reconnaissance",
+    "port_discovery",
+    "service_enumeration",
+    "conditional_assessment",
+    "vulnerability_assessment",
+    "normalization",
+    "ai_analysis"
+]
+tools = ["dnsx", "rustscan", "nmap", "httpx", "whatweb", "nuclei", "nikto"]
+nuclei_severity = ["critical", "high", "medium", "low"]
+
+[profiles.custom]
+name = "Custom Assessment"
+description = "User-defined assessment with selectable stages, specific port ranges, custom timeouts, and granular tool controls."
+port_range = "top1000"
+rate_limit = 1000
+timeout_seconds = 1200
+stages = [
+    "target_validation",
+    "reconnaissance",
+    "port_discovery",
+    "service_enumeration",
+    "vulnerability_assessment",
+    "normalization"
+]
+tools = ["nmap", "httpx", "nuclei"]
+nuclei_severity = ["critical", "high"]
+
