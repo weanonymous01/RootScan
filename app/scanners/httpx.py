@@ -19,7 +19,17 @@ class HttpxAdapter(BaseScannerAdapter):
 
     @property
     def binary_name(self) -> str:
+        import shutil
+        if shutil.which("httpx"):
+            return "httpx"
+        if shutil.which("httpx-toolkit"):
+            return "httpx-toolkit"
         return "httpx"
+
+    @property
+    def is_available(self) -> bool:
+        import shutil
+        return shutil.which("httpx") is not None or shutil.which("httpx-toolkit") is not None
 
     def build_command(self, target: str, options: Dict[str, Any], output_path: Optional[Path] = None) -> List[str]:
         args = [

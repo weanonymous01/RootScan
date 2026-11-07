@@ -50,15 +50,14 @@ echo -e "\n${BLUE}[*] Checking and installing system security tools...${NC}"
 if command -v apt-get >/dev/null 2>&1; then
     echo -e "    Updating apt package index..."
     sudo apt-get update -qq || true
-    echo -e "    Installing standard tools (nmap, whatweb, git, curl)..."
-    sudo apt-get install -y -qq nmap whatweb git curl python3-venv python3-pip || true
+    echo -e "    Installing tools (nmap, whatweb, nikto, nuclei, rustscan, httpx-toolkit)..."
+    sudo apt-get install -y -qq nmap whatweb nikto nuclei rustscan httpx-toolkit git curl python3-venv python3-pip || true
 fi
 
-# Check Go tools (Nuclei, httpx, dnsx, naabu)
-if ! command -v nuclei >/dev/null 2>&1 || ! command -v httpx >/dev/null 2>&1; then
-    echo -e "    Checking Go for ProjectDiscovery tools..."
+# Fallback: Check Go tools if any are still missing
+if ! command -v nuclei >/dev/null 2>&1 || (! command -v httpx >/dev/null 2>&1 && ! command -v httpx-toolkit >/dev/null 2>&1); then
     if command -v go >/dev/null 2>&1; then
-        echo -e "    Installing nuclei & httpx via Go..."
+        echo -e "    Installing missing ProjectDiscovery tools via Go..."
         go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest || true
         go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest || true
     fi
