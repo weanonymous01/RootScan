@@ -179,9 +179,39 @@ class ScanOrchestrator:
             except Exception as e:
                 tool_summary["Nmap"] = f"Execution error: {e}"
         else:
-            # Fallback simulated discovery if external tools are not yet installed in host environment
-            tool_summary["Nmap"] = "Skipped (Binary not installed)"
-            skipped_stages.append("nmap_scanning")
+            # Execute built-in RustScan-style fast asynchronous TCP discovery
+            discovered_ports = await RustScanAdapter.fast_socket_discovery(scope.target)
+            ports.extend(discovered_ports)
+            target_ip = scope.authorized_ips and next(iter(scope.authorized_ips)) or scope.target
+            
+            PORT_MAP = {
+                21: "ftp", 22: "ssh", 23: "telnet", 25: "smtp", 53: "dns",
+                80: "http", 110: "pop3", 111: "rpcbind", 135: "msrpc", 139: "netbios-ssn",
+                143: "imap", 443: "https", 445: "microsoft-ds", 993: "imaps", 995: "pop3s",
+                1433: "ms-sql-s", 1521: "oracle", 3306: "mysql", 3389: "ms-wbt-server",
+                5432: "postgresql", 5900: "vnc", 6379: "redis", 8000: "http-alt",
+                8080: "http-proxy", 8443: "https-alt", 8888: "http-alt", 27017: "mongodb"
+            }
+
+            for p in discovered_ports:
+                svc_name = PORT_MAP.get(p.port, "unknown")
+                services.append(ServiceResult(
+                    port=p.port,
+                    protocol="tcp",
+                    state="open",
+                    service_name=svc_name,
+                    source_tool="RustScan-Engine"
+                ))
+                await self.event_bus.publish(ScanEvent(
+                    event_type=EventType.PORT_DISCOVERED,
+                    scan_id=scan_id,
+                    tool_name="RustScan",
+                    data={"port": p.port, "ip": target_ip},
+                    message=f"Open {target_ip}:{p.port}"
+                ))
+
+            tool_summary["RustScan"] = f"Fast TCP discovery found {len(discovered_ports)} open ports"
+            tool_summary["Nmap"] = "Bypassed (using internal RustScan engine)"
 
         # Probing Web Services with httpx if available
         httpx_adapter = HttpxAdapter(task_manager=self.task_manager)
@@ -321,7 +351,7 @@ class ScanOrchestrator:
             try:
                 ai_analysis = await self.nim_client.analyze_scan_report(final_report)
                 if ai_analysis:
-                    self.storage.save_stage_json(scan_id, "ai_analysis.json", ai_analysis.model_dump())
+                    self.storage.save_stage_json(scan_id, "ai_analysis.json", json.loads(ai_analysis.model_dump_json()))
                     self.db.save_ai_analysis(
                         scan_id=scan_id,
                         model=ai_analysis.model,
@@ -331,7 +361,7 @@ class ScanOrchestrator:
                         exploit_intelligence=ai_analysis.exploit_intelligence,
                         attack_path_analysis=ai_analysis.attack_path_analysis,
                         recommendations=ai_analysis.recommendations,
-                        full_analysis_json=json.dumps(ai_analysis.model_dump())
+                        full_analysis_json=ai_analysis.model_dump_json()
                     )
                     self.db.update_scan_status(scan_id=scan_id, status="completed", ai_status="completed")
             except Exception as e:

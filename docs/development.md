@@ -69,3 +69,4 @@ pytest -v
 # Commit with conventional commit messages
 git commit -m "feat(scanners): Add custom vulnerability scanner adapter"
 ```
+
