@@ -404,46 +404,71 @@ def run_cli():
             asyncio.run(run_rustscan_assessment(target, ulimit=args.ulimit, profile=args.profile, allow_private=args.allow_private))
             return
 
-        # Interactive RustScan prompt when launched without arguments (e.g. `.\start.ps1`)
+        # Interactive prompt when launched without arguments (e.g. `.\start.ps1`)
         print_banner()
-        console.print("[bold green][+][/bold green] [bold white]RustScan-Mode Activated[/bold white]")
-        console.print("[dim]Enter target to scan (e.g. scanme.nmap.org) or flags (e.g. -a rootme.thm -u 5000)[/dim]\n")
         try:
-            raw_input_line = console.input("[bold green]rootscan > [/bold green]").strip()
-            if raw_input_line:
-                import shlex
-                tokens = shlex.split(raw_input_line)
-                target = ""
-                ulimit = args.ulimit
-                profile = args.profile
-                allow_priv = args.allow_private
+            raw_input_line = console.input("[bold green][?][/bold green] [bold white]Enter Target IP or Domain to scan:[/bold white] ").strip()
+            if not raw_input_line:
+                console.print("[yellow][*][/yellow] No target provided. Exiting.")
+                return
 
-                if tokens and tokens[0].startswith("-"):
-                    sub_args, sub_unk = parser.parse_known_args(tokens)
-                    target = sub_args.address or (sub_unk[0] if sub_unk else "")
+            import shlex
+            tokens = shlex.split(raw_input_line)
+            cmd = tokens[0].lower()
+
+            if cmd in ("exit", "quit", "q"):
+                console.print("[yellow][*][/yellow] Session terminated.")
+                return
+            elif cmd == "history":
+                cli_history()
+                return
+            elif cmd == "tools":
+                asyncio.run(cli_tools())
+                return
+            elif cmd == "ai-test":
+                asyncio.run(cli_ai_test())
+                return
+
+            # Target scan execution
+            target = ""
+            ulimit = args.ulimit
+            profile = args.profile
+            allow_priv = args.allow_private
+
+            if tokens and tokens[0].startswith("-"):
+                sub_args, sub_unk = parser.parse_known_args(tokens)
+                target = sub_args.address or (sub_unk[0] if sub_unk else "")
+                ulimit = sub_args.ulimit
+                profile = sub_args.profile
+                allow_priv = sub_args.allow_private
+            else:
+                target = tokens[0]
+                if len(tokens) > 1:
+                    sub_args, _ = parser.parse_known_args(tokens[1:])
                     ulimit = sub_args.ulimit
                     profile = sub_args.profile
-                    allow_priv = sub_args.allow_private
-                elif tokens:
-                    target = tokens[0]
-                    # Check remaining tokens for flags
-                    if len(tokens) > 1:
-                        sub_args, _ = parser.parse_known_args(tokens[1:])
-                        ulimit = sub_args.ulimit
-                        profile = sub_args.profile
-                        allow_priv = sub_args.allow_private or allow_priv
+                    allow_priv = sub_args.allow_private or allow_priv
 
-                if target:
-                    asyncio.run(run_rustscan_assessment(
-                        target,
-                        ulimit=ulimit,
-                        profile=profile,
-                        allow_private=allow_priv,
-                        banner_printed=True
-                    ))
-                else:
-                    console.print("[yellow][*][/yellow] No valid target specified. Exiting.")
+            if target:
+                # Check if it is a private IP (e.g. TryHackMe / lab target)
+                from app.security.validation import validate_target
+                val = validate_target(target, allow_private=False)
+                if val.is_private and not allow_priv:
+                    auth = console.input(f"[bold yellow][?][/bold yellow] Target '{target}' is in a private network range. Authorize scan? [Y/n]: ").strip().lower()
+                    if auth in ("n", "no"):
+                        console.print("[yellow][*][/yellow] Scan cancelled.")
+                        return
+                    allow_priv = True
+
+                console.print(f"[bold green][+][/bold green] Starting full assessment pipeline for [bold cyan]{target}[/bold cyan]...\n")
+                asyncio.run(run_rustscan_assessment(
+                    target,
+                    ulimit=ulimit,
+                    profile=profile,
+                    allow_private=allow_priv,
+                    banner_printed=True
+                ))
             else:
-                console.print("[yellow][*][/yellow] No target provided. Exiting.")
+                console.print("[yellow][*][/yellow] No valid target specified. Exiting.")
         except (KeyboardInterrupt, EOFError):
             console.print("\n[yellow][*][/yellow] Session terminated.")
