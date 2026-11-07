@@ -61,10 +61,11 @@ class NimClient:
             resp = await client.chat.completions.create(
                 model=self.model,
                 messages=[{"role": "user", "content": "Respond with 'ROOTSCAN_ONLINE' if you receive this."}],
-                max_tokens=10,
+                max_tokens=256,
                 temperature=0.0
             )
-            content = resp.choices[0].message.content or ""
+            msg = resp.choices[0].message
+            content = msg.content or getattr(msg, "reasoning_content", None) or ""
             if "ROOTSCAN_ONLINE" in content or len(content.strip()) > 0:
                 return True, f"Connected successfully to NVIDIA NIM ({self.model})."
             return False, "Unexpected response from NVIDIA NIM API."
@@ -113,7 +114,8 @@ Provide your analysis structured with these sections:
                 max_tokens=4000,
                 temperature=0.2
             )
-            raw_text = resp.choices[0].message.content or ""
+            msg = resp.choices[0].message
+            raw_text = msg.content or getattr(msg, "reasoning_content", None) or ""
             return AIAnalysisReport(
                 scan_id=report.metadata.scan_id,
                 model=self.model,
@@ -161,7 +163,8 @@ Provide your analysis structured with these sections:
                 max_tokens=2048,
                 temperature=0.3
             )
-            return resp.choices[0].message.content or "No response received."
+            msg = resp.choices[0].message
+            return msg.content or getattr(msg, "reasoning_content", None) or "No response received."
         except Exception as e:
             return f"Error communicating with NVIDIA NIM: {str(e)}"
 

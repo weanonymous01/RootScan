@@ -16,9 +16,11 @@ from app.core.scope_manager import ScopeManager
 from app.core.task_manager import TaskManager
 from app.database.models import FindingRecord, ScanRecord, ServiceRecord
 from app.database.repository import DatabaseRepository
+from app.intelligence.correlation import FindingCorrelator
 from app.intelligence.dns_intelligence import DnsIntelligence
 from app.intelligence.ip_intelligence import IpIntelligence
 from app.reports.generator import ReportGenerator
+from app.reports.html_exporter import HtmlReportExporter
 from app.reports.schemas import (
     Confidence,
     FinalReport,
@@ -32,8 +34,11 @@ from app.reports.schemas import (
 )
 from app.reports.storage import ReportStorage, generate_scan_id
 from app.scanners.httpx import HttpxAdapter
+from app.scanners.nikto import NiktoAdapter
 from app.scanners.nmap import NmapAdapter
 from app.scanners.nuclei import NucleiAdapter
+from app.scanners.rustscan import RustScanAdapter
+from app.scanners.whatweb import WhatWebAdapter
 from app.security.validation import TargetType, validate_target
 
 
@@ -233,26 +238,24 @@ class ScanOrchestrator:
             tool_summary["Nuclei"] = "Skipped (Binary not installed)"
             skipped_stages.append("nuclei_vulnerability_scan")
 
-        # Deduplicate & record findings
-        unique_findings: List[NormalizedFinding] = []
-        seen_keys = set()
-        for f in findings:
-            key = (f.title, f.port, f.cve_id)
-            if key not in seen_keys:
-                seen_keys.add(key)
-                unique_findings.append(f)
-                self.db.add_finding(FindingRecord(
-                    scan_id=scan_id,
-                    title=f.title,
-                    severity=f.severity.value,
-                    confidence=f.confidence.value,
-                    source_tool=f.source_tool,
-                    cve_id=f.cve_id,
-                    affected_component=f.affected_component,
-                    observed_version=f.observed_version,
-                    evidence_text=f.evidence,
-                    remediation=f.remediation
-                ))
+        # Deduplicate, correlate, and enrich findings
+        unique_findings = FindingCorrelator.deduplicate_findings(findings)
+        unique_findings = FindingCorrelator.link_findings_to_services(services, unique_findings)
+        unique_findings = await FindingCorrelator.enrich_findings_with_cve_intelligence(unique_findings)
+
+        for f in unique_findings:
+            self.db.add_finding(FindingRecord(
+                scan_id=scan_id,
+                title=f.title,
+                severity=f.severity.value,
+                confidence=f.confidence.value,
+                source_tool=f.source_tool,
+                cve_id=f.cve_id,
+                affected_component=f.affected_component,
+                observed_version=f.observed_version,
+                evidence_text=f.evidence,
+                remediation=f.remediation
+            ))
 
         self.storage.save_stage_json(scan_id, "vulnerabilities.json", [f.model_dump() for f in unique_findings])
 
@@ -291,7 +294,7 @@ class ScanOrchestrator:
             ]
         )
 
-        # Write reports
+        # Write JSON and Markdown reports
         self.storage.save_stage_json(scan_id, "final_report.json", final_report.model_dump())
         md_content = ReportGenerator.generate_markdown(final_report)
         self.storage.save_markdown_report(scan_id, md_content)
@@ -306,6 +309,7 @@ class ScanOrchestrator:
         )
 
         # --- STAGE 8: NVIDIA NIM AI SECURITY ANALYSIS ---
+        ai_analysis = None
         if self.nim_client.is_configured:
             await self.event_bus.publish(ScanEvent(
                 event_type=EventType.STAGE_STARTED,
@@ -333,6 +337,10 @@ class ScanOrchestrator:
                 self.db.update_scan_status(scan_id=scan_id, status="completed", ai_status="failed")
         else:
             self.db.update_scan_status(scan_id=scan_id, status="completed", ai_status="skipped")
+
+        # Generate standalone HTML report
+        html_content = HtmlReportExporter.export(final_report, ai_analysis=ai_analysis)
+        self.storage.save_html_report(scan_id, html_content)
 
         await self.event_bus.publish(ScanEvent(
             event_type=EventType.SCAN_COMPLETED,

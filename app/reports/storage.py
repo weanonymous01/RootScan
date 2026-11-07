@@ -68,3 +68,11 @@ class ReportStorage:
             f.write(content)
         return file_path
 
+    def save_html_report(self, scan_id: str, content: str) -> Path:
+        """Save self-contained modern HTML report."""
+        scan_dir = self.get_scan_dir(scan_id)
+        file_path = scan_dir / "final_report.html"
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(content)
+        return file_path
+
