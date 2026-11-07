@@ -223,7 +223,22 @@ class ScanOrchestrator:
                     options=profile,
                     evidence_dir=evidence_dir
                 )
-                services.extend(web_services)
+                for ws in web_services:
+                    matched = False
+                    for s in services:
+                        if s.port == ws.port and s.protocol == ws.protocol:
+                            if ws.service_name:
+                                s.service_name = ws.service_name
+                            if ws.service_version:
+                                s.service_version = ws.service_version
+                            if ws.banner:
+                                s.banner = ws.banner
+                            if ws.technologies:
+                                s.technologies = list(set(s.technologies + ws.technologies))
+                            matched = True
+                            break
+                    if not matched:
+                        services.append(ws)
                 tool_summary["httpx"] = f"Probed {len(web_services)} web endpoints"
             except Exception as e:
                 tool_summary["httpx"] = f"Error: {e}"
@@ -236,11 +251,15 @@ class ScanOrchestrator:
                     for ws in web_services:
                         matched = False
                         for s in services:
-                            if s.port == ws.port:
-                                s.service_name = ws.service_name
-                                s.service_version = ws.service_version
-                                s.banner = ws.banner
-                                s.technologies = ws.technologies
+                            if s.port == ws.port and s.protocol == ws.protocol:
+                                if ws.service_name:
+                                    s.service_name = ws.service_name
+                                if ws.service_version:
+                                    s.service_version = ws.service_version
+                                if ws.banner:
+                                    s.banner = ws.banner
+                                if ws.technologies:
+                                    s.technologies = list(set(s.technologies + ws.technologies))
                                 matched = True
                                 break
                         if not matched:
@@ -276,12 +295,23 @@ class ScanOrchestrator:
         nuclei_adapter = NucleiAdapter(task_manager=self.task_manager)
         if nuclei_adapter.is_available:
             try:
+                # If target has specific web ports open, optimize target for nuclei
+                target_for_nuclei = scope.target
+                web_targets = [s for s in services if s.service_name in ("http", "https") or s.port in (80, 443, 8080, 8443)]
+                if web_targets and not target_for_nuclei.startswith("http"):
+                    first_ws = web_targets[0]
+                    scheme = "https" if first_ws.port in (443, 8443) or "https" in (first_ws.service_name or "") else "http"
+                    if (scheme == "http" and first_ws.port == 80) or (scheme == "https" and first_ws.port == 443):
+                        target_for_nuclei = f"{scheme}://{scope.target}"
+                    else:
+                        target_for_nuclei = f"{scheme}://{scope.target}:{first_ws.port}"
+
                 res, nuclei_findings = await nuclei_adapter.execute(
                     scan_id=scan_id,
-                    target=scope.target,
+                    target=target_for_nuclei,
                     options=profile,
                     evidence_dir=evidence_dir,
-                    timeout_seconds=profile.get("timeout_seconds", 600)
+                    timeout_seconds=min(profile.get("timeout_seconds", 300), 120)
                 )
                 findings.extend(nuclei_findings)
                 tool_summary["Nuclei"] = f"Identified {len(nuclei_findings)} security findings"

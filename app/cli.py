@@ -126,8 +126,12 @@ async def run_rustscan_assessment(
     console.print(f"Initiating SYN Stealth Scan at {now_time}")
     console.print(f"Scanning {report.target.normalized_target} ({resolved_ip}) [{len(ports_list) or 1} ports]")
 
+    seen_disc = set()
     for s in report.services:
-        console.print(f"Discovered open port {s.port}/{s.protocol} on {resolved_ip}")
+        key = (s.port, s.protocol)
+        if key not in seen_disc:
+            seen_disc.add(key)
+            console.print(f"Discovered open port {s.port}/{s.protocol} on {resolved_ip}")
 
     total_ports = len(ports_list) or len(report.ports) or 1
     console.print(f"Completed SYN Stealth Scan at {now_time}, 0.24s elapsed ({total_ports} total ports)")
@@ -139,7 +143,12 @@ async def run_rustscan_assessment(
     # Columnar port table matching screenshot: PORT STATE SERVICE REASON
     console.print(f"{'PORT':<9} {'STATE':<6} {'SERVICE':<10} {'REASON'}")
     if report.services:
+        seen_table = set()
         for s in report.services:
+            key = (s.port, s.protocol)
+            if key in seen_table:
+                continue
+            seen_table.add(key)
             reason = s.banner or "syn-ack ttl 61"
             console.print(f"{str(s.port)+'/'+s.protocol:<9} {s.state.lower():<6} {s.service_name or 'unknown':<10} {reason}")
     else:
@@ -380,18 +389,15 @@ def run_cli():
         app.run()
         return
 
-    # Verify and auto-download missing security tool binaries into bin/
-    if not args.tui and args.command not in ("history", "ai-test", "export", "delete"):
-        check_and_install_missing_tools(auto_download=True)
-
     # If -a / --addresses flag was provided (RustScan syntax)
-
     if args.address:
+        check_and_install_missing_tools(auto_download=True, verbose=False)
         asyncio.run(run_rustscan_assessment(args.address, ulimit=args.ulimit, profile=args.profile, allow_private=args.allow_private))
         return
 
     # If positional or subcommand
     if args.command == "scan":
+        check_and_install_missing_tools(auto_download=True, verbose=False)
         asyncio.run(run_rustscan_assessment(args.target, ulimit=args.ulimit, profile=args.profile, allow_private=args.allow_private))
     elif args.command == "history":
         cli_history()
@@ -409,11 +415,13 @@ def run_cli():
         # Check if an unknown positional argument was passed as target (e.g. `rootscan scanme.nmap.org`)
         if unknown and not unknown[0].startswith("-"):
             target = unknown[0]
+            check_and_install_missing_tools(auto_download=True, verbose=False)
             asyncio.run(run_rustscan_assessment(target, ulimit=args.ulimit, profile=args.profile, allow_private=args.allow_private))
             return
 
         # Interactive prompt when launched without arguments (e.g. `.\start.ps1`)
         print_banner()
+        check_and_install_missing_tools(auto_download=True, verbose=True)
         try:
             raw_input_line = console.input("[bold green][?][/bold green] [bold white]Enter Target IP or Domain to scan:[/bold white] ").strip()
             if not raw_input_line:

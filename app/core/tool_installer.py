@@ -52,6 +52,10 @@ TOOL_RELEASES = {
             "binary": "naabu",
             "url": "https://github.com/projectdiscovery/naabu/releases/download/v2.7.0/naabu_2.7.0_linux_amd64.zip",
         },
+        "rustscan": {
+            "binary": "rustscan",
+            "url": "https://github.com/bee-san/RustScan/releases/download/2.4.1/x86_64-linux-rustscan.tar.gz",
+        },
     },
 }
 
@@ -82,57 +86,69 @@ def download_tool(tool_name: str, os_name: str = "windows") -> bool:
             if resp.status_code != 200:
                 return False
 
-            z = zipfile.ZipFile(io.BytesIO(resp.content))
-            for member in z.namelist():
-                if member.endswith(tool_info["binary"]) or member == tool_info["binary"]:
-                    data = z.read(member)
-                    with open(dest_binary, "wb") as f:
-                        f.write(data)
-                    if os_name != "windows":
-                        dest_binary.chmod(0o755)
-                    return True
-    except Exception as e:
+            if url.endswith(".tar.gz") or url.endswith(".tgz"):
+                import tarfile
+                with tarfile.open(fileobj=io.BytesIO(resp.content), mode="r:gz") as tar:
+                    for member in tar.getmembers():
+                        if member.name.endswith(tool_info["binary"]) or member.name == tool_info["binary"]:
+                            f_obj = tar.extractfile(member)
+                            if f_obj:
+                                with open(dest_binary, "wb") as f:
+                                    f.write(f_obj.read())
+                                if os_name != "windows":
+                                    dest_binary.chmod(0o755)
+                                return True
+            else:
+                z = zipfile.ZipFile(io.BytesIO(resp.content))
+                for member in z.namelist():
+                    if member.endswith(tool_info["binary"]) or member == tool_info["binary"]:
+                        data = z.read(member)
+                        with open(dest_binary, "wb") as f:
+                            f.write(data)
+                        if os_name != "windows":
+                            dest_binary.chmod(0o755)
+                        return True
+    except Exception:
         return False
 
     return False
 
 
-def check_and_install_missing_tools(auto_download: bool = True) -> Dict[str, bool]:
-    """Check tool availability and automatically download any missing standalone binaries."""
+def check_and_install_missing_tools(auto_download: bool = True, verbose: bool = False) -> Dict[str, bool]:
+    """Check tool availability, download missing standalone binaries, and report status."""
     ensure_bin_in_path()
     os_name = "windows" if sys.platform.startswith("win") else ("linux" if sys.platform.startswith("linux") else "darwin")
 
-    tools_to_check = ["httpx", "nuclei", "rustscan", "naabu"]
+    tools_to_check = ["rustscan", "httpx", "nuclei", "naabu"]
     missing = []
+    ready = []
     for t in tools_to_check:
-        # Check if available in PATH or inside bin/
         bin_file = BIN_DIR / (f"{t}.exe" if os_name == "windows" else t)
-        if shutil.which(t) is None and not bin_file.exists():
+        if shutil.which(t) is not None or bin_file.exists():
+            ready.append(t)
+        else:
             missing.append(t)
 
-    status: Dict[str, bool] = {}
-    if not missing:
-        return status
+    status: Dict[str, bool] = {t: True for t in ready}
 
-    console.print(f"[bold cyan][~][/bold cyan] Checking tool dependencies... [yellow]{len(missing)} tools not in PATH[/yellow]")
-    if auto_download:
-        console.print(f"[bold cyan][~][/bold cyan] Automatically downloading security tools to [cyan]bin/[/cyan]...")
-        for t in missing:
-            with console.status(f"[bold cyan]Fetching {t}..."):
-                ok = download_tool(t, os_name=os_name)
-            if ok:
-                console.print(f"  [bold green][+][/bold green] {t:<10} : [bold green]DOWNLOADED & READY[/bold green]")
-                status[t] = True
-            else:
-                console.print(f"  [bold yellow][*][/bold yellow] {t:<10} : [dim]Using internal Python engine fallback[/dim]")
-                status[t] = False
+    if missing:
+        console.print(f"[bold cyan][~][/bold cyan] Checking tool dependencies... [yellow]{len(missing)} tools not in PATH/bin[/yellow]")
+        if auto_download:
+            console.print(f"[bold cyan][~][/bold cyan] Automatically downloading security tools to [cyan]bin/[/cyan]...")
+            for t in missing:
+                with console.status(f"[bold cyan]Fetching {t}..."):
+                    ok = download_tool(t, os_name=os_name)
+                if ok:
+                    console.print(f"  [bold green][+][/bold green] {t:<10} : [bold green]DOWNLOADED & READY[/bold green]")
+                    status[t] = True
+                    ready.append(t)
+                else:
+                    console.print(f"  [bold yellow][*][/bold yellow] {t:<10} : [dim]Using internal Python engine fallback[/dim]")
+                    status[t] = False
+        console.print()
+    elif verbose:
+        ready_names = ", ".join(t.capitalize() for t in ready)
+        console.print(f"[bold green][+][/bold green] [bold white]Active Engines Ready:[/bold white] [bold cyan]{ready_names}[/bold cyan]")
+        console.print(f"[bold green][+][/bold green] [bold white]AI Security Engine :[/bold white] [bold cyan]NVIDIA NIM (nvidia/nemotron-3.5-lightning-30b-a3b)[/bold cyan]\n")
 
-    # Check Nmap
-    if shutil.which("nmap") is None:
-        if os_name == "windows":
-            console.print("  [bold yellow][*][/bold yellow] nmap       : [dim]Optional: install via 'winget install Insecure.Nmap'[/dim]")
-        else:
-            console.print("  [bold yellow][*][/bold yellow] nmap       : [dim]Optional: install via 'sudo apt install nmap'[/dim]")
-
-    console.print()
     return status
