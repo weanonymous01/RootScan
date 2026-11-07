@@ -10,6 +10,7 @@ import time
 from typing import Any, Dict, List, Optional
 
 from app.ai.nim_client import NimClient
+from app.ai.report_analyzer import ReportAnalyzer
 from app.core.configuration import get_config
 from app.core.event_bus import EventType, ScanEvent, get_event_bus
 from app.core.scope_manager import ScopeManager

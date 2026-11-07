@@ -83,3 +83,4 @@ class ReportComparator:
             service_version_changes=version_changes,
             risk_delta=risk_delta
         )
+

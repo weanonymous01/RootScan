@@ -80,3 +80,4 @@ class FindingCorrelator:
                     if ref not in f.references:
                         f.references.append(ref)
         return findings
+

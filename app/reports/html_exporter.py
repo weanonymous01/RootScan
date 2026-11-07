@@ -289,3 +289,4 @@ class HtmlReportExporter:
 </html>
 """
         return html_template
+

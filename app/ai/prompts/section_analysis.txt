@@ -1,0 +1,14 @@
+Analyze the following specific section of security assessment data:
+
+SECTION TYPE: {section_type}
+SECTION DATA:
+```json
+{section_data}
+```
+
+Instructions:
+1. Identify all observed services, technologies, or vulnerability findings in this section.
+2. Note key evidence snippets and software version numbers.
+3. Highlight any configuration weaknesses or exposure risks.
+4. Keep finding identifiers consistent.
+5. Return a concise, structured section summary.
