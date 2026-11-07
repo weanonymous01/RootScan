@@ -28,9 +28,12 @@ from app.scanners.nmap import NmapAdapter
 from app.scanners.nuclei import NucleiAdapter
 from app.scanners.rustscan import RustScanAdapter
 from app.scanners.whatweb import WhatWebAdapter
+from app.core.tool_installer import ensure_bin_in_path, check_and_install_missing_tools
 
+ensure_bin_in_path()
 
 console = Console()
+
 
 RUSTSCAN_BANNER = r"""[bold cyan]
 .______    ______    ______ .___________.  _______.  ______     ___      .__   __. 
@@ -377,7 +380,12 @@ def run_cli():
         app.run()
         return
 
+    # Verify and auto-download missing security tool binaries into bin/
+    if not args.tui and args.command not in ("history", "ai-test", "export", "delete"):
+        check_and_install_missing_tools(auto_download=True)
+
     # If -a / --addresses flag was provided (RustScan syntax)
+
     if args.address:
         asyncio.run(run_rustscan_assessment(args.address, ulimit=args.ulimit, profile=args.profile, allow_private=args.allow_private))
         return

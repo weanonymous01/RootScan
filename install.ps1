@@ -29,5 +29,10 @@ if (-not (Test-Path ".env")) {
 Write-Host "[*] Initializing SQLite database..." -ForegroundColor Yellow
 .\venv\Scripts\python -c "from app.core.configuration import get_config; from app.database.repository import DatabaseRepository; config = get_config(); db = DatabaseRepository(config.database_path); print('Database initialized at:', config.database_path)"
 
+# 6. Automatic Tool Binary Setup
+Write-Host "[*] Checking and downloading security scanner binaries into .\bin..." -ForegroundColor Yellow
+.\venv\Scripts\python -c "from app.core.tool_installer import check_and_install_missing_tools; check_and_install_missing_tools(auto_download=True)"
+
 Write-Host "`n[✓] RootScan installation complete! Run .\start.ps1 to launch." -ForegroundColor Green
+
 

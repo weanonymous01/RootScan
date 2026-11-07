@@ -46,8 +46,11 @@ class BaseScannerAdapter(ABC):
                 args=[self.binary_name, "--version"],
                 timeout_seconds=10
             )
-            first_line = (res.stdout or res.stderr).splitlines()
-            return first_line[0].strip() if first_line else "Unknown"
+            lines = [l.strip() for l in (res.stdout or res.stderr).splitlines() if l.strip()]
+            for l in lines:
+                if "version" in l.lower() or "v1." in l.lower() or "v2." in l.lower() or "v3." in l.lower():
+                    return l
+            return lines[0] if lines else "Installed"
         except Exception:
             return "Unknown"
 

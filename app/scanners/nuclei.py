@@ -22,8 +22,18 @@ class NucleiAdapter(BaseScannerAdapter):
         return "nuclei"
 
     def build_command(self, target: str, options: Dict[str, Any], output_path: Optional[Path] = None) -> List[str]:
-        # Form safe target URL or host
-        args = [self.binary_name, "-u", target, "-no-color", "-jsonl"]
+        # Form safe target URL or host with non-blocking flags
+        args = [
+            self.binary_name,
+            "-u", target,
+            "-no-color",
+            "-jsonl",
+            "-no-stdin",
+            "-duc",
+            "-timeout", "4",
+            "-silent"
+        ]
+
 
         severities = options.get("nuclei_severity", ["critical", "high", "medium"])
         if severities:

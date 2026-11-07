@@ -33,11 +33,19 @@ class Configuration:
         self.data_dir = self.base_dir / self.settings.get("app", {}).get("data_dir", "data")
         self.database_path = self.base_dir / self.settings.get("app", {}).get("database_path", "data/database/rootscan.db")
         self.scans_dir = self.base_dir / self.settings.get("app", {}).get("scans_dir", "data/scans")
+        self.bin_dir = self.base_dir / "bin"
 
         # Ensure primary directories exist
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
         self.scans_dir.mkdir(parents=True, exist_ok=True)
+        self.bin_dir.mkdir(parents=True, exist_ok=True)
+
+        # Prepend bin/ directory to PATH so local tools are immediately available
+        bin_str = str(self.bin_dir)
+        curr_path = os.environ.get("PATH", "")
+        if bin_str not in curr_path.split(os.pathsep):
+            os.environ["PATH"] = bin_str + os.pathsep + curr_path
 
     def _load_toml(self, file_path: Path) -> Dict[str, Any]:
         """Load and parse a TOML file safely."""

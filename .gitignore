@@ -18,6 +18,9 @@ data/database/*.db
 data/database/*.db-wal
 data/database/*.db-shm
 data/scans/
+bin/
+*.exe
+
 
 # Temporary files & logs
 *.log
