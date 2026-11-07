@@ -213,7 +213,7 @@ class ScanOrchestrator:
             tool_summary["RustScan"] = f"Fast TCP discovery found {len(discovered_ports)} open ports"
             tool_summary["Nmap"] = "Bypassed (using internal RustScan engine)"
 
-        # Probing Web Services with httpx if available
+        # Probing Web Services with httpx or built-in Python HTTP engine
         httpx_adapter = HttpxAdapter(task_manager=self.task_manager)
         if httpx_adapter.is_available:
             try:
@@ -227,6 +227,28 @@ class ScanOrchestrator:
                 tool_summary["httpx"] = f"Probed {len(web_services)} web endpoints"
             except Exception as e:
                 tool_summary["httpx"] = f"Error: {e}"
+        else:
+            # Built-in pure-Python HTTP engine fallback
+            candidate_ports = [p.port for p in ports if p.port in (80, 443, 8080, 8443, 8000, 8888, 3000, 5000, 9000)]
+            if candidate_ports:
+                try:
+                    web_services = await HttpxAdapter.python_fallback_probe(scope.target, candidate_ports)
+                    for ws in web_services:
+                        matched = False
+                        for s in services:
+                            if s.port == ws.port:
+                                s.service_name = ws.service_name
+                                s.service_version = ws.service_version
+                                s.banner = ws.banner
+                                s.technologies = ws.technologies
+                                matched = True
+                                break
+                        if not matched:
+                            services.append(ws)
+                    tool_summary["httpx"] = f"Built-in HTTP engine probed {len(web_services)} endpoints"
+                except Exception as e:
+                    tool_summary["httpx"] = f"Fallback error: {e}"
+
 
         # Save ports and services
         self.storage.save_stage_json(scan_id, "ports.json", [p.model_dump() for p in ports])

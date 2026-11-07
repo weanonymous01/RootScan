@@ -92,3 +92,61 @@ class HttpxAdapter(BaseScannerAdapter):
 
         return results
 
+    @staticmethod
+    async def python_fallback_probe(target: str, ports: List[int], timeout: float = 4.0) -> List[ServiceResult]:
+        """Built-in pure-Python HTTP probe using httpx library when binary is not in PATH."""
+        import httpx as py_httpx
+        import re
+
+        results: List[ServiceResult] = []
+        client_options = {"verify": False, "timeout": timeout, "follow_redirects": False}
+
+        async with py_httpx.AsyncClient(**client_options) as client:
+            for port in ports:
+                schemes = ["http"] if port in (80, 8080, 8000, 8888) else (["https"] if port in (443, 8443) else ["http", "https"])
+                for scheme in schemes:
+                    url = f"{scheme}://{target}:{port}/"
+                    try:
+                        resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0 RootScan/1.0"})
+                        server = resp.headers.get("server", "").strip()
+                        powered_by = resp.headers.get("x-powered-by", "").strip()
+                        location = resp.headers.get("location", "").strip()
+
+                        title_match = re.search(r"<title>(.*?)</title>", resp.text, re.IGNORECASE | re.DOTALL)
+                        title = title_match.group(1).strip() if title_match else ""
+
+                        techs: List[str] = []
+                        if server:
+                            techs.append(server)
+                        if powered_by:
+                            techs.append(f"X-Powered-By:{powered_by}")
+
+                        banner_parts = []
+                        if server:
+                            banner_parts.append(f"Server: {server}")
+                        if resp.status_code:
+                            banner_parts.append(f"HTTP {resp.status_code}")
+                        if location:
+                            banner_parts.append(f"Redirect: {location}")
+                        if title:
+                            banner_parts.append(f"Title: {title[:40]}")
+
+                        banner = " | ".join(banner_parts) if banner_parts else f"HTTP {resp.status_code}"
+
+                        results.append(ServiceResult(
+                            port=port,
+                            protocol="tcp",
+                            state="open",
+                            service_name="http" if scheme == "http" else "https",
+                            service_version=server or None,
+                            banner=banner,
+                            technologies=techs,
+                            source_tool="httpx-engine"
+                        ))
+                        break
+                    except Exception:
+                        continue
+
+        return results
+
+
