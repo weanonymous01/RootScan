@@ -52,7 +52,7 @@ RootScan uses the NVIDIA NIM API for local-first, privacy-respecting AI security
 
 ```env
 NVIDIA_NIM_API_KEY=nvapi-your-key-here
-NVIDIA_NIM_MODEL=meta/llama-3.3-70b-instruct
+NVIDIA_NIM_MODEL=nvidia/nemotron-3.5-lightning-30b-a3b
 NVIDIA_NIM_BASE_URL=https://integrate.api.nvidia.com/v1
 ```
 
@@ -62,39 +62,45 @@ NVIDIA_NIM_BASE_URL=https://integrate.api.nvidia.com/v1
 
 ## 4. Usage
 
-### Interactive Terminal User Interface (TUI)
+### Minimal Colorful Terminal (RustScan Style - Default)
 
-Launch the full-screen dashboard:
+Launch directly with:
 ```bash
 ./start.sh
+# or on Windows
+.\start.ps1
 ```
-Keybindings:
-- `Tab` / `Shift+Tab`: Navigate form controls
-- `Arrow Keys`: Navigate lists and tables
-- `Enter`: Select action
-- `Escape`: Return to previous view
-- `Q`: Quit
-
-### Headless CLI Mode
-
-RootScan can be invoked directly from scripts or CI/CD pipelines:
+It immediately presents the RustScan-inspired terminal, prompts for your target IP or domain, and runs the entire automated pipeline:
 
 ```bash
-# Execute standard assessment against a domain
-python -m app.main scan scanme.nmap.org --profile standard
+# Direct scan flags (RustScan syntax)
+./start.sh -a scanme.nmap.org -u 5000 --profile quick
 
-# Execute internal assessment (requires explicit authorization flag)
-python -m app.main scan 192.168.1.10 --profile quick --allow-private
+# Private / lab network scan (e.g. TryHackMe, HackTheBox)
+./start.sh -a 10.10.203.136 --allow-private
 
-# View historical scan records
-python -m app.main history
+# Check security tool registry health
+./start.sh tools
 
-# Inspect security tool health and versions
-python -m app.main tools
+# View past assessment history
+./start.sh history
 
-# Verify NVIDIA NIM connection
-python -m app.main ai-test
+# Diff two historical assessments
+./start.sh compare SCN-20261107-00001 SCN-20261107-00002
+
+# Export report in standalone HTML, Markdown, or JSON
+./start.sh export SCN-20261107-00001 --format html --out report.html
 ```
+
+### Full-Screen Textual TUI Dashboard
+
+To launch the full-screen interactive Textual dashboard with mouse and arrow key support:
+```bash
+./start.sh --tui
+# or on Windows
+.\start.ps1 --tui
+```
+
 
 ---
 
