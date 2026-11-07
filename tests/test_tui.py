@@ -14,7 +14,7 @@ from app.tui.app import (
 )
 
 
-class TestTuiApp(unittest.TestCase):
+class TestTuiApp(unittest.IsolatedAsyncioTestCase):
     def test_app_initialization_and_css(self):
         app = RootScanApp()
         self.assertIsNotNone(app)
@@ -35,6 +35,12 @@ class TestTuiApp(unittest.TestCase):
         ]
         self.assertEqual(len(screens), 8)
 
+    async def test_app_pilot_run(self):
+        app = RootScanApp()
+        async with app.run_test() as pilot:
+            self.assertTrue(app.is_running)
+
 
 if __name__ == "__main__":
     unittest.main()
+

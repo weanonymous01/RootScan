@@ -151,12 +151,12 @@ Button.-primary:hover {
     color: #080c10;
 }
 
-Button.-danger {
+Button.-error {
     background: #ff3366;
     color: #ffffff;
 }
 
-Button.-danger:hover {
+Button.-error:hover {
     background: #ff6688;
     color: #ffffff;
 }
@@ -216,7 +216,7 @@ Log {
 }
 """
 
-ASCII_LOGO = """[bold cyan]
+ASCII_LOGO = r"""[bold cyan]
   ____             _   ____                  
  |  _ \ ___   ___ | |_/ ___|  ___ __ _ _ __  
  | |_) / _ \ / _ \| __\___ \ / __/ _` | '_ \ 
@@ -239,7 +239,7 @@ class TerminalNavBar(Static):
             yield Button("[3] AI Analyst", id="nav-ai")
             yield Button("[4] Tool Health", id="nav-tools")
             yield Button("[5] Settings", id="nav-settings")
-            yield Button("[Q] Quit", id="nav-quit", variant="danger")
+            yield Button("[Q] Quit", id="nav-quit", variant="error")
 
 
 # ==============================================================================
@@ -400,7 +400,7 @@ class LiveScanScreen(Screen):
             # Status Header Bar
             with Horizontal(classes="live-header-bar"):
                 yield Label(f"[bold green][+][/bold green] TARGET: [bold white]{self.target}[/bold white]  |  PROFILE: [bold cyan]{self.profile.upper()}[/bold cyan]  |  STAGE: [bold yellow]VALIDATING[/bold yellow]", id="lbl-live-header")
-                yield Button("[X] Abort Scan", id="btn-abort", variant="danger")
+                yield Button("[X] Abort Scan", id="btn-abort", variant="error")
 
             yield Label("[bold green][+][/bold green] [bold white]REAL-TIME EVENT STREAM[/bold white]")
             yield Log(id="live-log")

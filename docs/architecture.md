@@ -77,3 +77,4 @@ All scanner integrations inherit from `BaseScannerAdapter`:
 Each scan is assigned a cryptographic collision-resistant ID (`SCN-YYYYMMDD-XXXXX`):
 - **SQLite Database (`data/database/rootscan.db`)**: Indexed metadata for rapid search, history querying, and multi-turn AI conversations.
 - **File System (`data/scans/<SCN-ID>/`)**: Complete stage records (`target.json`, `ports.json`, `services.json`, `vulnerabilities.json`), raw tool evidence (`evidence/`), and rendered reports (`final_report.json`, `final_report.md`, `final_report.html`, `ai_analysis.json`).
+

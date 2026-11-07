@@ -229,6 +229,34 @@ def cli_compare(scan_id_1: str, scan_id_2: str):
             console.print(f"    - {f.title}")
 
 
+def cli_export(scan_id: str, report_format: str, out_path: Optional[str] = None):
+    """Export a saved scan report in the chosen format."""
+    print_banner()
+    config = get_config()
+    scan_dir = config.scans_dir / scan_id
+
+    if not scan_dir.exists():
+        console.print(f"[bold red][-][/bold red] Scan ID '{scan_id}' not found in storage.")
+        return
+
+    ext = "html" if report_format == "html" else ("md" if report_format == "markdown" else "json")
+    src_file = scan_dir / f"final_report.{ext}"
+
+    if not src_file.exists():
+        console.print(f"[bold red][-][/bold red] Format '{report_format}' not available for {scan_id}.")
+        return
+
+    content = src_file.read_text(encoding="utf-8", errors="replace")
+
+    if out_path:
+        dest = Path(out_path)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(content, encoding="utf-8")
+        console.print(f"[bold green][+][/bold green] Report successfully exported to: [bold cyan]{dest}[/bold cyan]")
+    else:
+        console.print(content)
+
+
 def run_cli():
     """CLI Argument parser entrypoint."""
     parser = argparse.ArgumentParser(description="RootScan - AI-Powered Security Assessment Toolkit")
@@ -254,6 +282,12 @@ def run_cli():
     comp_p.add_argument("scan1", help="Baseline Scan ID")
     comp_p.add_argument("scan2", help="Compare Scan ID")
 
+    # export command
+    exp_p = subparsers.add_parser("export", help="Export assessment report in HTML, Markdown, or JSON")
+    exp_p.add_argument("scan_id", help="Scan ID to export")
+    exp_p.add_argument("--format", default="html", choices=["html", "markdown", "json"], help="Output report format")
+    exp_p.add_argument("--out", default=None, help="Destination file path")
+
     args = parser.parse_args()
 
     if args.command == "scan":
@@ -266,5 +300,7 @@ def run_cli():
         asyncio.run(cli_ai_test())
     elif args.command == "compare":
         cli_compare(args.scan1, args.scan2)
+    elif args.command == "export":
+        cli_export(args.scan_id, args.format, args.out)
     else:
         parser.print_help()
