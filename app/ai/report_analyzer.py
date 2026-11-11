@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from app.ai.nim_client import NimClient
+from app.ai.nim_client import NimClient, build_ai_report_model
 from app.reports.schemas import AIAnalysisReport, FinalReport
 
 
@@ -79,18 +79,14 @@ class ReportAnalyzer:
         )
 
         try:
-            client = self.nim_client._get_client()
-            resp = await client.chat.completions.create(
-                model=self.nim_client.model,
+            return await self.nim_client._complete(
                 messages=[
                     {"role": "system", "content": self._read_prompt("system.txt")},
                     {"role": "user", "content": user_content}
                 ],
                 max_tokens=1500,
-                temperature=0.2
+                temperature=0.2,
             )
-            msg = resp.choices[0].message
-            return msg.content or getattr(msg, "reasoning_content", None) or ""
         except Exception:
             return None
 
@@ -106,31 +102,20 @@ class ReportAnalyzer:
         )
 
         try:
-            client = self.nim_client._get_client()
-            resp = await client.chat.completions.create(
-                model=self.nim_client.model,
+            raw_text = await self.nim_client._complete(
                 messages=[
                     {"role": "system", "content": self._read_prompt("system.txt")},
                     {"role": "user", "content": user_content}
                 ],
-                max_tokens=4000,
-                temperature=0.2
+                max_tokens=1100,
+                temperature=0.2,
             )
-            msg = resp.choices[0].message
-            raw_text = msg.content or getattr(msg, "reasoning_content", None) or ""
 
-            return AIAnalysisReport(
-                scan_id=report.metadata.scan_id,
-                model=self.nim_client.model,
-                executive_summary=raw_text[:1000],
-                attack_surface_analysis=raw_text,
-                vulnerability_explanation=raw_text,
-                exploit_intelligence=raw_text,
-                attack_path_analysis=raw_text,
-                risk_prioritization="High",
-                recommendations=raw_text,
+            return build_ai_report_model(
+                report.metadata.scan_id,
+                self.nim_client.model,
+                raw_text,
                 limitations="Multi-section synthesized assessment without active payload execution.",
-                conclusion=raw_text[-500:]
             )
         except Exception as e:
             print(f"[!] Synthesis failed: {e}")

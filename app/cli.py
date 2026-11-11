@@ -290,9 +290,9 @@ async def run_rustscan_assessment(
             ai_data = json.loads(ai_file.read_text(encoding="utf-8"))
             exec_summary = ai_data.get("executive_summary") or ""
             if exec_summary:
-                first_lines = [l.strip() for l in exec_summary.split("\n") if l.strip() and not l.strip().startswith("#")][:6]
-                if first_lines:
-                    panel_body = "\n".join(escape(fl) for fl in first_lines)
+                paragraphs = [p.strip() for p in exec_summary.split("\n\n") if p.strip()][:3]
+                if paragraphs:
+                    panel_body = "\n\n".join(escape(p) for p in paragraphs)
                     console.print()
                     console.print(
                         Panel(

@@ -1,19 +1,10 @@
-Synthesize the following section analyses into one comprehensive, unified RootScan AI Security Analysis:
+Combine the section notes below into one clear, simple summary for `{target}` ({target_type}):
 
-TARGET: {target} ({target_type})
-SECTION ANALYSES:
 {section_summaries}
 
-Your synthesized report MUST follow this exact 11-part structure:
-1. EXECUTIVE SUMMARY: High-level overview of target security posture and exposure.
-2. OVERALL SECURITY ASSESSMENT: Risk evaluation based strictly on observed findings.
-3. TARGET ATTACK SURFACE: Open ports, running services, network perimeter.
-4. NETWORK AND SERVICE ANALYSIS: Deep-dive into identified services and banners.
-5. VULNERABILITY FINDINGS: Detailed explanations (dual-audience: beginner and technical) for each finding.
-6. ATTACK PATH ANALYSIS: Plausible attacker progression chains supported by evidence.
-7. POTENTIAL SECURITY RISKS: Impact evaluation if exposed components are targeted.
-8. RECOMMENDED NEXT STEPS: Prioritized immediate actions for operators.
-9. REMEDIATION PRIORITY: Step-by-step defensive remediation guide.
-10. ASSESSMENT LIMITATIONS: Disclosure of testing boundaries, unvalidated items, and missing scans.
-11. FINAL AI CONCLUSION: Definitive closing assessment.
+Write STRICTLY 3 clear plain-text paragraphs separated by a single blank line. Do NOT use markdown headings (#), bullet lists (* or -), numbered lists, bold markers (**), backticks (`), or section labels. Write in very simple, everyday plain English without technical words, raw header/cipher/protocol names, byte sizes, or jargon, while keeping exact [ToolName] tags (only tool names, never template names):
+
+Paragraph 1 (Everything Found in the Search): Put all detailed findings in one clear story (who runs it, open ports/doors, what web pages answered, certificate details, and all warnings/issues found) with exact [ToolName] tags.
+Paragraph 2 (What We Can Do Next): Explain simply what practical checks or fixes we can do next without repeating Paragraph 1.
+Paragraph 3 (What to Start Right Now): State the single clearest step to start right now.
 

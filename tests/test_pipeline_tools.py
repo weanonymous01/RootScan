@@ -2,6 +2,7 @@ import asyncio
 from datetime import datetime, timezone
 import json
 
+from app.ai.nim_client import build_ai_report_model, format_three_paragraph_summary
 from app.core.orchestrator import _build_web_urls, _merge_port_into, _merge_service_into
 from app.intelligence.correlation import FindingCorrelator
 from app.parsers.nuclei_parser import NucleiParser
@@ -293,3 +294,25 @@ class TestPipelineToolsAndAttribution:
         assert "Tool Execution Audit" in html_out
         assert "Skipped Stages" in html_out
         assert "Nmap (not installed)" in html_out
+
+    def test_ai_summary_three_paragraph_normalization(self):
+        messy = (
+            "### 1. Summary\n"
+            "**Paragraph 1 (What We Found):** Ports `80` and `443` are open [RustScan, Naabu] with HTTP/3 [httpx].\n\n"
+            "- **What We Can Do Next:** Audit older TLS 1.0/1.1 settings [Nuclei].\n\n"
+            "3. Start Right Now: Turn off older TLS 1.0 and TLS 1.1 on port 443 first."
+        )
+        cleaned = format_three_paragraph_summary(messy)
+        paras = cleaned.split("\n\n")
+        assert len(paras) == 3
+        assert "**" not in cleaned
+        assert "`" not in cleaned
+        assert "###" not in cleaned
+        assert paras[0].startswith("Ports 80 and 443")
+        assert paras[1].startswith("Audit older TLS")
+        assert paras[2].startswith("Turn off older TLS")
+
+        model = build_ai_report_model("SCN-20261112-AI1", "test-model", messy)
+        assert model.executive_summary == cleaned
+        assert model.conclusion == paras[2]
+        assert model.recommendations == f"{paras[1]}\n\n{paras[2]}"
