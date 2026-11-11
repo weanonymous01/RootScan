@@ -46,10 +46,10 @@ RUSTSCAN_BANNER = r"""[bold cyan]
 [/bold cyan]
 [bold green]The Modern Day Security Assessment Toolkit.[/bold green]
 [bold green]________________________________________
-: https://discord.gg/GFrQsGy            :
-: https://github.com/RootScan/RootScan  :
+: https://weanonymous.in                :
+: https://github.com/weanonymous01      :
  --------------------------------------[/bold green]
-[bold cyan]💎HACK THE PLANET💎[/bold cyan]
+[bold cyan]Elliot: Just a Tech.[/bold cyan]
 """
 
 
