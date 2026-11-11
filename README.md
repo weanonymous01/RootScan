@@ -13,7 +13,7 @@ GitHub: https://github.com/weanonymous01
 
 ## Contents
 
-1. [Example AI Summary Output](#1-example-ai-summary-output)
+1. [Example: AI Security Assessment Overview](#1-example-ai-security-assessment-overview)
 2. [How the Whole System Works (Workflow)](#2-how-the-whole-system-works-workflow)
 3. [Step-by-Step Walkthrough](#3-step-by-step-walkthrough)
 4. [Quick Installation](#4-quick-installation)
@@ -28,7 +28,7 @@ GitHub: https://github.com/weanonymous01
 
 ---
 
-## 1. Example AI Summary Output
+## 1. Example: AI Security Assessment Overview
 
 At the end of every scan, RootScan prints tables of discovered ports, services, and warnings, followed by a clean 3-paragraph AI overview in plain English:
 
