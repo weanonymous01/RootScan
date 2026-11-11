@@ -12,6 +12,7 @@ import sys
 from typing import Optional
 
 from rich.console import Console
+from rich.markup import escape
 
 from app.ai.nim_client import NimClient
 from app.core.configuration import get_config
@@ -56,6 +57,52 @@ def print_banner():
     console.print(RUSTSCAN_BANNER)
 
 
+def _render_recon_output(recon: dict):
+    """Display DNS and IP intelligence clearly quoted with source tools."""
+    if not recon:
+        return
+
+    dns_info = recon.get("dns")
+    ip_info = recon.get("ip")
+    if not dns_info and not ip_info:
+        return
+
+    console.print(f"\n[bold cyan][~][/bold cyan] [bold white]RECONNAISSANCE & NETWORK INTELLIGENCE[/bold white]")
+    if dns_info:
+        src = dns_info.get("source_tool", "DnsIntelligence")
+        src_tag = escape(f"[{src}]")
+        console.print(f"  [bold green][+][/bold green] Domain: [cyan]{escape(str(dns_info.get('domain') or ''))}[/cyan] [dim]{escape(f'[via {src}]')}[/dim]")
+        for key, label in [
+            ("a_records", "A Records"),
+            ("aaaa_records", "AAAA Records"),
+            ("cname_records", "CNAME"),
+            ("mx_records", "MX Records"),
+            ("ns_records", "NS Records"),
+            ("txt_records", "TXT Records"),
+        ]:
+            vals = dns_info.get(key) or []
+            if vals:
+                console.print(f"      -> {label:<12}: {escape(', '.join(vals[:5]))} [dim]{src_tag}[/dim]")
+
+    if ip_info:
+        src = ip_info.get("source_tool", "IpIntelligence")
+        src_tag = escape(f"[{src}]")
+        ip_addr = ip_info.get("ip_address")
+        rdns = ip_info.get("reverse_dns")
+        rdap = ip_info.get("rdap") or {}
+        console.print(f"  [bold green][+][/bold green] IP Address: [cyan]{escape(str(ip_addr or ''))}[/cyan] [dim]{escape(f'[via {src}]')}[/dim]")
+        if rdns:
+            console.print(f"      -> Reverse DNS : {escape(str(rdns))} [dim]{src_tag}[/dim]")
+        if rdap:
+            net_name = rdap.get("name") or rdap.get("org") or rdap.get("handle") or "Unknown"
+            country = rdap.get("country") or "-"
+            cidr = rdap.get("cidr") or (
+                f"{rdap.get('start_address')} - {rdap.get('end_address')}"
+                if rdap.get("start_address") else "-"
+            )
+            console.print(f"      -> RDAP Owner  : {escape(str(net_name))} ({escape(str(country))}) | Netblock: {escape(str(cidr))} [dim]{src_tag}[/dim]")
+
+
 async def run_rustscan_assessment(
     target: str,
     ulimit: int = 5000,
@@ -63,31 +110,32 @@ async def run_rustscan_assessment(
     allow_private: bool = False,
     banner_printed: bool = False,
 ):
-    """Execute assessment with visual layout identical to RustScan."""
+    """Execute multi-tool assessment pipeline with strict per-tool result attribution."""
     config = get_config()
     if not banner_printed:
         print_banner()
 
-    console.print(f"[bold cyan][~][/bold cyan] The config file is expected to be at \"{config.base_dir / 'config' / 'settings.toml'}\"")
-    console.print(f"[bold cyan][~][/bold cyan] Automatically increasing ulimit value to {ulimit}.")
+    console.print(f"[bold cyan][~][/bold cyan] Config: [dim]{config.base_dir / 'config' / 'settings.toml'}[/dim]")
+    console.print(f"[bold cyan][~][/bold cyan] Target: [cyan]{target}[/cyan] | Profile: [cyan]{profile}[/cyan] | Batch ulimit: {ulimit}")
 
     event_bus = get_event_bus()
-    target_ip = target
     discovered_ports_set: set[int] = set()
 
     async def log_event(event: ScanEvent):
-        nonlocal target_ip
         if event.event_type == EventType.PORT_DISCOVERED:
             p_data = event.data or {}
             port = p_data.get("port")
-            ip = p_data.get("ip", target_ip)
+            ip = p_data.get("ip", target)
+            tool = p_data.get("tool") or event.tool_name or "Scanner"
             if port and port not in discovered_ports_set:
                 discovered_ports_set.add(port)
-                console.print(f"Open [medium_purple1]{ip}:{port}[/medium_purple1]")
-        elif event.event_type == EventType.TOOL_OUTPUT:
-            line = event.message or ""
-            if "Scanning" in line or "Discovered open port" in line or "Completed" in line or "Initiating" in line:
-                console.print(f"{line}")
+                console.print(f"Open [medium_purple1]{ip}:{port}[/medium_purple1] [bold cyan][via {tool}][/bold cyan]")
+        elif event.event_type == EventType.TOOL_STARTED:
+            cmd = (event.data or {}).get("command", "")
+            console.print(f"[bold cyan][~][/bold cyan] Running [bold white]{event.tool_name}[/bold white] [dim]({cmd.split()[0] if cmd else event.tool_name})[/dim]")
+        elif event.event_type == EventType.TOOL_FAILED:
+            msg = event.message or f"exited with code {(event.data or {}).get('exit_code', '?')}"
+            console.print(f"[bold yellow][*][/bold yellow] [bold white]{event.tool_name}[/bold white]: [yellow]{msg}[/yellow]")
 
     event_bus.subscribe_all(log_event)
 
@@ -104,44 +152,20 @@ async def run_rustscan_assessment(
 
     resolved_ip = report.target.resolved_ips[0] if report.target.resolved_ips else target
 
-    # Ensure all open ports are printed in RustScan purple style
-    if report.services:
-        for s in report.services:
-            if s.port not in discovered_ports_set:
-                discovered_ports_set.add(s.port)
-                console.print(f"Open [medium_purple1]{resolved_ip}:{s.port}[/medium_purple1]")
+    # Ensure any remaining discovered ports not emitted via live event are printed with attribution
+    for p in report.ports:
+        if p.port not in discovered_ports_set:
+            discovered_ports_set.add(p.port)
+            console.print(f"Open [medium_purple1]{resolved_ip}:{p.port}[/medium_purple1] [bold cyan][via {p.discovery_source}][/bold cyan]")
 
-    ports_list = sorted(list(discovered_ports_set))
-    ports_str = ",".join(str(p) for p in ports_list) if ports_list else "top100"
+    _render_recon_output(report.reconnaissance)
 
-    console.print(f"[bold cyan][~][/bold cyan] Starting Script(s)")
-    console.print(f"[bold green][>][/bold green] [bold green]Script to be run Some(\"nmap -vvv -p {ports_str} {resolved_ip}\")[/bold green]\n")
-
-    now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
-    now_time = datetime.utcnow().strftime("%H:%M")
-    console.print(f"[bold cyan][~][/bold cyan] Starting Nmap 7.94 ( https://nmap.org ) at {now_str}")
-    console.print(f"Initiating Ping Scan at {now_time}")
-    console.print(f"Scanning {resolved_ip} [{len(ports_list) or 1} ports]")
-    console.print(f"Completed Ping Scan, 0.23s elapsed (1 total hosts)")
-    console.print(f"Initiating SYN Stealth Scan at {now_time}")
-    console.print(f"Scanning {report.target.normalized_target} ({resolved_ip}) [{len(ports_list) or 1} ports]")
-
-    seen_disc = set()
-    for s in report.services:
-        key = (s.port, s.protocol)
-        if key not in seen_disc:
-            seen_disc.add(key)
-            console.print(f"Discovered open port {s.port}/{s.protocol} on {resolved_ip}")
-
-    total_ports = len(ports_list) or len(report.ports) or 1
-    console.print(f"Completed SYN Stealth Scan at {now_time}, 0.24s elapsed ({total_ports} total ports)")
-    console.print(f"Nmap scan report for {report.target.normalized_target} ({resolved_ip})")
-    console.print(f"Host is up, received reset ttl 61 (0.20s latency).")
     duration = report.metadata.duration_seconds or 0.0
-    console.print(f"Scanned at {now_str} for {duration:.2f}s\n")
+    now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+    console.print(f"\n[bold cyan][~][/bold cyan] [bold white]DISCOVERED PORTS & SERVICES[/bold white] [dim](Target: {report.target.normalized_target} [{resolved_ip}] | Scanned {now_str} in {duration:.2f}s)[/dim]")
+    console.print(f"{'PORT':<9} {'STATE':<6} {'SERVICE':<10} {'DETAILS':<48} {'FOUND BY'}")
+    console.print("-" * 100)
 
-    # Columnar port table matching screenshot: PORT STATE SERVICE REASON
-    console.print(f"{'PORT':<9} {'STATE':<6} {'SERVICE':<10} {'REASON'}")
     if report.services:
         seen_table = set()
         for s in report.services:
@@ -149,35 +173,68 @@ async def run_rustscan_assessment(
             if key in seen_table:
                 continue
             seen_table.add(key)
-            reason = s.banner or "syn-ack ttl 61"
-            console.print(f"{str(s.port)+'/'+s.protocol:<9} {s.state.lower():<6} {s.service_name or 'unknown':<10} {reason}")
-    else:
-        console.print(f"None      closed -          No exposed ports found in authorized scope.")
 
-    # Vulnerabilities
+            details_parts = []
+            if s.service_version and s.service_version not in (s.banner or ""):
+                details_parts.append(s.service_version)
+            if s.banner:
+                details_parts.append(s.banner)
+            if s.technologies:
+                tech_str = ", ".join(t for t in s.technologies if t not in (s.banner or ""))
+                if tech_str:
+                    details_parts.append(f"Tech: {tech_str}")
+
+            details = " | ".join(details_parts) if details_parts else "open tcp port"
+            if len(details) > 46:
+                details = details[:43] + "..."
+            tools_label = ", ".join(s.all_sources()) or s.source_tool
+            tools_badge = escape(f"[{tools_label}]")
+            svc_col = escape(f"{s.service_name or 'unknown':<10}")
+            det_col = escape(f"{details:<48}")
+            console.print(f"{str(s.port)+'/'+s.protocol:<9} {s.state.lower():<6} {svc_col} {det_col} [bold cyan]{tools_badge}[/bold cyan]")
+    else:
+        console.print(f"None      closed -          No exposed ports found in authorized scope.       {escape('[RustScan, Naabu]')}")
+
+    # Vulnerability Findings attributed per tool
     if report.findings:
-        console.print(f"\n[bold red][-][/bold red] [bold white]VULNERABILITY FINDINGS ({len(report.findings)})[/bold white]")
+        console.print(f"\n[bold red][!][/bold red] [bold white]VULNERABILITY & CONFIGURATION FINDINGS ({len(report.findings)})[/bold white]")
         for f in report.findings:
-            sev_color = "bold red" if f.severity.value in ("critical", "high") else "yellow"
+            sev_color = "bold red" if f.severity.value in ("critical", "high") else ("yellow" if f.severity.value == "medium" else "cyan")
             cve_str = f" [{f.cve_id}]" if f.cve_id else ""
-            console.print(f"  [{sev_color}][!][/{sev_color}] [{sev_color}]{f.severity.value.upper()}[/{sev_color}] {f.title}{cve_str} [dim]via {f.source_tool}[/dim]")
+            port_str = f" (Port {f.port}/{f.protocol or 'tcp'})" if f.port else ""
+            found_by = escape(f"[Found by: {f.source_tool}]")
+            console.print(f"  [{sev_color}][!][/{sev_color}] [{sev_color}]{f.severity.value.upper()}[/{sev_color}] {escape(f.title)}{escape(cve_str)}{escape(port_str)} [bold cyan]{found_by}[/bold cyan]")
+            if f.evidence:
+                ev_line = f.evidence.splitlines()[0]
+                console.print(f"      [dim]-> {escape(ev_line)}[/dim]")
             if f.remediation:
-                console.print(f"      [dim]-> Remediation: {f.remediation}[/dim]")
+                rem_line = f.remediation.splitlines()[0]
+                console.print(f"      [dim]-> Remediation: {escape(rem_line)}[/dim]")
+    else:
+        console.print(f"\n[bold green][+][/bold green] [bold white]VULNERABILITY ASSESSMENT:[/bold white] No active vulnerabilities detected [bold cyan]{escape('[Checked by: Nuclei]')}[/bold cyan]")
+
+    # Tool Execution Audit Summary
+    if report.tool_summary:
+        console.print(f"\n[bold cyan][~][/bold cyan] [bold white]TOOL EXECUTION AUDIT[/bold white]")
+        for tool_name, summary in report.tool_summary.items():
+            icon = "[bold yellow][*][/bold yellow]" if summary.startswith(("Skipped", "Execution error", "Fallback error")) else "[bold green][+][/bold green]"
+            tool_col = escape(f"{tool_name:<22}")
+            console.print(f"  {icon} {tool_col} : {escape(str(summary))}")
 
     # AI Security Analyst Section
     ai_file = config.scans_dir / scan_id / "ai_analysis.json"
     if ai_file.exists():
-        console.print(f"\n[bold cyan][~][/bold cyan] Starting AI Security Analyst (NVIDIA NIM: {config.nvidia_nim_model})")
+        console.print(f"\n[bold cyan][~][/bold cyan] Starting AI Security Analyst [bold cyan]{escape(f'[NVIDIA NIM: {config.nvidia_nim_model}]')}[/bold cyan]")
         console.print(f"[bold green][>][/bold green] [bold green]Evidence-grounded vulnerability explanation & attack path synthesis completed.[/bold green]")
         try:
             ai_data = json.loads(ai_file.read_text(encoding="utf-8"))
             exec_summary = ai_data.get("executive_summary") or ""
             if exec_summary:
-                first_lines = [l.strip() for l in exec_summary.split("\n") if l.strip() and not l.strip().startswith("#")][:3]
+                first_lines = [l.strip() for l in exec_summary.split("\n") if l.strip() and not l.strip().startswith("#")][:4]
                 if first_lines:
-                    console.print(f"\n[bold cyan][~][/bold cyan] [bold white]AI Security Assessment Overview:[/bold white]")
+                    console.print(f"\n[bold cyan][~][/bold cyan] [bold white]AI Security Assessment Overview:[/bold white] [dim]{escape('[NVIDIA NIM]')}[/dim]")
                     for fl in first_lines:
-                        console.print(f"    [dim]{fl}[/dim]")
+                        console.print(f"    [dim]{escape(fl)}[/dim]")
         except Exception:
             pass
 

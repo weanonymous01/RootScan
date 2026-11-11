@@ -33,8 +33,8 @@ class ReportAnalyzer:
         # Check total findings and services count to determine if chunking is needed
         total_items = len(report.ports) + len(report.services) + len(report.findings)
 
-        if total_items <= 15:
-            # Efficient single-pass analysis
+        if total_items <= 50:
+            # Efficient single-pass analysis (fits comfortably in one context window)
             return await self.nim_client.analyze_scan_report(report)
 
         # Multi-section analysis for large scan reports

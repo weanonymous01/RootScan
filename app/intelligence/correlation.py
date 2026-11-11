@@ -34,6 +34,9 @@ class FindingCorrelator:
                 # If newly seen finding has higher confidence or severity, update
                 if f.confidence == Confidence.CONFIRMED and existing.confidence != Confidence.CONFIRMED:
                     existing.confidence = Confidence.CONFIRMED
+                # Merge tool attribution
+                if f.source_tool and f.source_tool not in existing.source_tool:
+                    existing.source_tool = f"{existing.source_tool}, {f.source_tool}"
                 # Merge references
                 for ref in f.references:
                     if ref not in existing.references:

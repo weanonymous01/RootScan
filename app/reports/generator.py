@@ -63,25 +63,45 @@ class ReportGenerator:
                 f"## 3. Reconnaissance & Intelligence",
                 f"",
             ])
+            top_src = report.reconnaissance.get("source_tool")
             for k, v in report.reconnaissance.items():
-                md_lines.append(f"- **{k.replace('_', ' ').title()}:** {v}")
+                if k in ("source_tool", "source_tools"):
+                    src_val = ", ".join(v) if isinstance(v, list) else v
+                    md_lines.append(f"- **Source Tool(s):** `{src_val}`")
+                    continue
+                label = k.replace('_', ' ').title()
+                if isinstance(v, dict):
+                    src = v.get("source_tool") or top_src
+                    src_tag = f" *(Found by: `{src}`)*" if src else ""
+                    md_lines.append(f"- **{label}:**{src_tag}")
+                    for sub_k, sub_v in v.items():
+                        if sub_k == "source_tool":
+                            continue
+                        sub_label = sub_k.replace('_', ' ').title()
+                        md_lines.append(f"  - {sub_label}: {sub_v}")
+                else:
+                    src = report.reconnaissance.get(f"{k}_source_tool") or top_src
+                    src_tag = f" *(Found by: `{src}`)*" if src else ""
+                    md_lines.append(f"- **{label}:** {v}{src_tag}")
             md_lines.append("")
 
         # Discovered Ports & Services
         md_lines.extend([
             f"## 4. Discovered Ports & Services",
             f"",
-            f"| Port | Protocol | State | Service | Version | Technology Banner |",
-            f"|---|---|---|---|---|---|",
+            f"| Port | Protocol | State | Service | Version | Source Tool(s) | Technology Banner |",
+            f"|---|---|---|---|---|---|---|",
         ])
 
         if not report.services:
-            md_lines.append(f"| - | - | None detected | - | - | - |")
+            md_lines.append(f"| - | - | None detected | - | - | - | - |")
         else:
             for s in report.services:
-                banner_str = (s.banner or "")[:40].replace("|", "\\|")
+                banner_str = (s.banner or "")[:60].replace("|", "\\|")
+                sources = ", ".join(s.all_sources()) if hasattr(s, "all_sources") else ""
+                sources = (sources or s.source_tool or "-").replace("|", "\\|")
                 md_lines.append(
-                    f"| {s.port} | {s.protocol.upper()} | {s.state} | {s.service_name or 'unknown'} | {s.service_version or '-'} | {banner_str} |"
+                    f"| {s.port} | {s.protocol.upper()} | {s.state} | {s.service_name or 'unknown'} | {s.service_version or '-'} | {sources} | {banner_str} |"
                 )
         md_lines.extend(["", "---", "", "## 5. Vulnerability Findings", ""])
 

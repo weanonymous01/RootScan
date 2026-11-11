@@ -22,7 +22,19 @@ class NaabuAdapter(BaseScannerAdapter):
         return "naabu"
 
     def build_command(self, target: str, options: Dict[str, Any], output_path: Optional[Path] = None) -> List[str]:
-        args = [self.binary_name, "-host", target, "-json", "-silent", "-no-stdin", "-duc"]
+        args = [
+            self.binary_name,
+            "-host", target,
+            "-json",
+            "-silent",
+            "-no-stdin",
+            "-duc",
+            "-retries", "1",
+            "-warm-up-time", "0",
+            "-timeout", "500ms",
+            "-rate", "500",
+            "-c", "25",
+        ]
 
         port_range = options.get("port_range", "top100")
         if port_range == "top100":
@@ -31,7 +43,7 @@ class NaabuAdapter(BaseScannerAdapter):
             args.extend(["-top-ports", "1000"])
         elif port_range == "1-65535":
             args.extend(["-p", "-"])
-        elif isinstance(port_range, str):
+        elif isinstance(port_range, str) and port_range:
             args.extend(["-p", port_range])
 
         if output_path:
@@ -40,11 +52,43 @@ class NaabuAdapter(BaseScannerAdapter):
 
         return args
 
+    async def scan_ports(
+        self,
+        scan_id: str,
+        target: str,
+        options: Dict[str, Any],
+        evidence_dir: Optional[Path] = None,
+        timeout_seconds: int = 60
+    ) -> List[PortResult]:
+        """Execute Naabu and return discovered open ports attributed to Naabu."""
+        output_file = evidence_dir / "naabu_output.json" if evidence_dir else None
+        args = self.build_command(target, options, output_path=output_file)
+
+        res = await self.task_manager.execute_tool(
+            scan_id=scan_id,
+            tool_name=self.name,
+            args=args,
+            timeout_seconds=timeout_seconds
+        )
+
+        content = res.stdout
+        if output_file and output_file.exists():
+            try:
+                content = output_file.read_text(encoding="utf-8", errors="replace")
+            except Exception:
+                pass
+        elif output_file:
+            evidence_dir.mkdir(parents=True, exist_ok=True)
+            output_file.write_text(content or "", encoding="utf-8", errors="replace")
+
+        return self.parse_ports(content)
+
     async def parse_output(self, output_content: str, evidence_path: Optional[Path] = None) -> List[NormalizedFinding]:
         return []
 
     def parse_ports(self, output_content: str) -> List[PortResult]:
         """Extract open ports from Naabu JSON lines."""
+        seen: set[tuple[int, str]] = set()
         ports: List[PortResult] = []
         for line in output_content.splitlines():
             line = line.strip()
@@ -54,14 +98,15 @@ class NaabuAdapter(BaseScannerAdapter):
                 data = json.loads(line)
                 port_num = int(data.get("port", 0))
                 proto = data.get("protocol", "tcp")
-                if port_num > 0:
+                if port_num > 0 and (port_num, proto) not in seen:
+                    seen.add((port_num, proto))
                     ports.append(PortResult(
                         port=port_num,
                         protocol=proto,
                         state=PortState.OPEN,
-                        discovery_source="Naabu"
+                        discovery_source="Naabu",
+                        source_tools=["Naabu"]
                     ))
             except Exception:
                 continue
-        return ports
-
+        return sorted(ports, key=lambda x: x.port)

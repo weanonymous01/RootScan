@@ -24,12 +24,28 @@ class PortState(str, Enum):
     UNFILTERED = "unfiltered"
 
 
+def _collect_unique_sources(primary: Optional[str], extra: List[str]) -> List[str]:
+    """Split comma-separated source names and return unique ordered tool names."""
+    tools: List[str] = []
+    for raw in [primary or "", *extra]:
+        for part in str(raw).split(","):
+            name = part.strip()
+            if name and name not in tools:
+                tools.append(name)
+    return tools
+
+
 class PortResult(BaseModel):
     port: int
     protocol: str = "tcp"
     state: PortState = PortState.OPEN
     discovery_source: str
+    source_tools: List[str] = Field(default_factory=list)
     timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+    def all_sources(self) -> List[str]:
+        """Return ordered unique list of tools that discovered this port."""
+        return _collect_unique_sources(self.discovery_source, self.source_tools)
 
 
 class ServiceResult(BaseModel):
@@ -41,6 +57,11 @@ class ServiceResult(BaseModel):
     banner: Optional[str] = None
     technologies: List[str] = Field(default_factory=list)
     source_tool: str = "nmap"
+    source_tools: List[str] = Field(default_factory=list)
+
+    def all_sources(self) -> List[str]:
+        """Return ordered unique list of tools that identified or enriched this service."""
+        return _collect_unique_sources(self.source_tool, self.source_tools)
 
 
 class Severity(str, Enum):

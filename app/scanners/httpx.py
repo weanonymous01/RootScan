@@ -41,6 +41,7 @@ class HttpxAdapter(BaseScannerAdapter):
             "-tech-detect",
             "-status-code",
             "-server",
+            "-location",
             "-json",
             "-silent"
         ]
@@ -52,21 +53,64 @@ class HttpxAdapter(BaseScannerAdapter):
         return args
 
     async def parse_output(self, output_content: str, evidence_path: Optional[Path] = None) -> List[NormalizedFinding]:
-        # httpx primarily returns service and technology information
         return []
 
-    async def probe(self, scan_id: str, target: str, options: Dict[str, Any], evidence_dir: Optional[Path] = None) -> List[ServiceResult]:
-        """Execute httpx probe and parse discovered web services."""
-        output_file = None
-        if evidence_dir:
-            output_file = evidence_dir / "httpx.jsonl"
+    @staticmethod
+    def build_candidate_urls(target: str, candidate_ports: Optional[List[int]] = None) -> List[str]:
+        """Build explicit HTTP/HTTPS target URLs from discovered ports."""
+        if target.startswith("http://") or target.startswith("https://"):
+            return [target]
 
-        args = self.build_command(target, options, output_path=output_file)
+        ports = candidate_ports or [80, 443]
+        urls: List[str] = []
+        for p in ports:
+            if p in (80, 8000, 8080, 8888, 3000, 5000, 9000):
+                urls.append(f"http://{target}:{p}")
+            elif p in (443, 8443):
+                urls.append(f"https://{target}:{p}")
+        return urls or [f"http://{target}:80", f"https://{target}:443"]
+
+    async def probe(
+        self,
+        scan_id: str,
+        target: str,
+        options: Dict[str, Any],
+        evidence_dir: Optional[Path] = None,
+        candidate_ports: Optional[List[int]] = None
+    ) -> List[ServiceResult]:
+        """Execute httpx probe across discovered web ports and parse web service info."""
+        output_file = None
+        targets_file = None
+        if evidence_dir:
+            evidence_dir.mkdir(parents=True, exist_ok=True)
+            output_file = evidence_dir / "httpx_output.jsonl"
+            targets_file = evidence_dir / "httpx_targets.txt"
+
+        urls = self.build_candidate_urls(target, candidate_ports)
+        if targets_file:
+            targets_file.write_text("\n".join(urls) + "\n", encoding="utf-8")
+            args = [
+                self.binary_name,
+                "-l", str(targets_file),
+                "-no-stdin",
+                "-timeout", "5",
+                "-title",
+                "-tech-detect",
+                "-status-code",
+                "-server",
+                "-location",
+                "-json",
+                "-silent",
+                "-o", str(output_file),
+            ]
+        else:
+            args = self.build_command(",".join(urls), options, output_path=output_file)
+
         res = await self.task_manager.execute_tool(
             scan_id=scan_id,
             tool_name=self.name,
             args=args,
-            timeout_seconds=options.get("timeout_seconds", 180)
+            timeout_seconds=min(options.get("timeout_seconds", 180), 60)
         )
 
         content = res.stdout
@@ -75,6 +119,8 @@ class HttpxAdapter(BaseScannerAdapter):
                 content = output_file.read_text(encoding="utf-8", errors="replace")
             except Exception:
                 pass
+        elif output_file:
+            output_file.write_text(content or "", encoding="utf-8", errors="replace")
 
         results: List[ServiceResult] = []
         for line in content.splitlines():
@@ -83,21 +129,36 @@ class HttpxAdapter(BaseScannerAdapter):
                 continue
             try:
                 data = json.loads(line)
-                port = int(data.get("port", 80 if data.get("scheme") == "http" else 443))
+                scheme = data.get("scheme", "http")
+                port = int(data.get("port", 80 if scheme == "http" else 443))
                 techs = data.get("tech", []) or []
-                title = data.get("title", "")
-                server = data.get("webserver", "")
-                banner = f"{server} | Title: {title}".strip(" |")
+                title = (data.get("title") or "").strip()
+                server = (data.get("webserver") or "").strip()
+                status_code = data.get("status_code")
+                location = (data.get("location") or "").strip()
+
+                banner_parts = []
+                if server:
+                    banner_parts.append(server)
+                if status_code:
+                    banner_parts.append(f"HTTP {status_code}")
+                if location:
+                    banner_parts.append(f"-> {location}")
+                if title:
+                    banner_parts.append(f"Title: {title[:45]}")
+
+                banner = " | ".join(banner_parts) if banner_parts else None
 
                 results.append(ServiceResult(
                     port=port,
                     protocol="tcp",
                     state="open",
-                    service_name="http" if port in (80, 8080) else "https",
+                    service_name=scheme if scheme in ("http", "https") else ("https" if port in (443, 8443) else "http"),
                     service_version=server or None,
-                    banner=banner or None,
+                    banner=banner,
                     technologies=techs,
-                    source_tool="httpx"
+                    source_tool="httpx",
+                    source_tools=["httpx"]
                 ))
             except Exception:
                 continue
@@ -135,13 +196,13 @@ class HttpxAdapter(BaseScannerAdapter):
 
                         banner_parts = []
                         if server:
-                            banner_parts.append(f"Server: {server}")
+                            banner_parts.append(server)
                         if resp.status_code:
                             banner_parts.append(f"HTTP {resp.status_code}")
                         if location:
-                            banner_parts.append(f"Redirect: {location}")
+                            banner_parts.append(f"-> {location}")
                         if title:
-                            banner_parts.append(f"Title: {title[:40]}")
+                            banner_parts.append(f"Title: {title[:45]}")
 
                         banner = " | ".join(banner_parts) if banner_parts else f"HTTP {resp.status_code}"
 
@@ -153,12 +214,11 @@ class HttpxAdapter(BaseScannerAdapter):
                             service_version=server or None,
                             banner=banner,
                             technologies=techs,
-                            source_tool="httpx-engine"
+                            source_tool="httpx-PythonFallback",
+                            source_tools=["httpx-PythonFallback"]
                         ))
                         break
                     except Exception:
                         continue
 
         return results
-
-

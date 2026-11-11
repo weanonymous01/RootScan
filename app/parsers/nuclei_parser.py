@@ -51,7 +51,9 @@ class NucleiParser:
                     cve_id = cve_val
 
             template_id = data.get("template-id", "unknown-template")
-            title = info.get("name", template_id)
+            base_title = info.get("name", template_id)
+            matcher_name = data.get("matcher-name") or data.get("extractor-name")
+            title = f"{base_title} ({matcher_name})" if matcher_name else base_title
             matched_at = data.get("matched-at", "")
             description = info.get("description", "")
             remediation = info.get("remediation", "")
@@ -59,7 +61,15 @@ class NucleiParser:
             if isinstance(references, str):
                 references = [references]
 
-            evidence = f"Matched at: {matched_at}\n{description}".strip()
+            port = None
+            raw_port = data.get("port")
+            if raw_port is not None:
+                try:
+                    port = int(raw_port)
+                except (ValueError, TypeError):
+                    pass
+
+            evidence = f"Matched at: {matched_at}\nTemplate: {template_id}\n{description}".strip()
             extracted = data.get("extracted-results", [])
             if extracted:
                 evidence += f"\nExtracted: {extracted}"
@@ -71,6 +81,8 @@ class NucleiParser:
                 confidence=Confidence.CONFIRMED,
                 cve_id=cve_id,
                 source_tool="Nuclei",
+                port=port,
+                protocol="tcp" if port else None,
                 evidence=evidence,
                 references=references,
                 remediation=remediation or None
