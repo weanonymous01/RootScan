@@ -2,6 +2,8 @@
 
 RootScan is a local security scanning toolkit built in Python. You give it a domain name or IP address, and it automatically checks your safety scope, collects basic network details, finds open ports, checks websites and security certificates, looks for common security issues, saves reports on your computer, and uses NVIDIA NIM AI to explain the results in simple English.
 
+![RootScan Demo](tests/Demo-Video/Demo-RootScan.gif)
+
 You can use it in two ways from your terminal:
 - **Fast CLI Mode (Default):** Clean colored tables inspired by RustScan.
 - **Interactive Dashboard (`--tui`):** A full-screen terminal interface with mouse and keyboard navigation.
