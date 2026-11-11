@@ -133,12 +133,12 @@ def get_current_os_and_arch() -> Tuple[str, str]:
 
 
 def ensure_bin_in_path():
-    """Ensure project bin/ directory exists and is prepended to os.environ['PATH']."""
+    """Ensure project bin/ directory exists and sits at the front of os.environ['PATH']."""
     BIN_DIR.mkdir(parents=True, exist_ok=True)
     bin_str = str(BIN_DIR)
-    current_path = os.environ.get("PATH", "")
-    if bin_str not in current_path.split(os.pathsep):
-        os.environ["PATH"] = bin_str + os.pathsep + current_path
+    current_parts = [p for p in os.environ.get("PATH", "").split(os.pathsep) if p]
+    filtered = [p for p in current_parts if os.path.normcase(os.path.normpath(p)) != os.path.normcase(os.path.normpath(bin_str))]
+    os.environ["PATH"] = os.pathsep.join([bin_str, *filtered])
 
 
 def extract_binary_from_archive(data: bytes, binary_name: str) -> Optional[bytes]:

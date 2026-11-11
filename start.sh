@@ -8,15 +8,14 @@ set -e
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 cd "$DIR"
 
-if [ -d "$DIR/bin" ]; then
-    export PATH="$DIR/bin:$PATH"
-fi
-
-
 if [ -f "venv/bin/activate" ]; then
     source venv/bin/activate
 elif [ -f "venv/Scripts/activate" ]; then
     source venv/Scripts/activate
+fi
+
+if [ -d "$DIR/bin" ]; then
+    export PATH="$DIR/bin:$PATH"
 fi
 
 python3 -m app.main "$@"

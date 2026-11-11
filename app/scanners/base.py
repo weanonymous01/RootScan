@@ -5,6 +5,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 import asyncio
 from pathlib import Path
+import re
 import shutil
 from typing import Any, Dict, List, Optional
 
@@ -46,7 +47,9 @@ class BaseScannerAdapter(ABC):
                 args=[self.binary_name, "--version"],
                 timeout_seconds=10
             )
-            lines = [l.strip() for l in (res.stdout or res.stderr).splitlines() if l.strip()]
+            raw = res.stdout or res.stderr
+            clean = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", raw)
+            lines = [l.strip() for l in clean.splitlines() if l.strip()]
             for l in lines:
                 if "version" in l.lower() or "v1." in l.lower() or "v2." in l.lower() or "v3." in l.lower():
                     return l

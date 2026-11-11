@@ -22,7 +22,9 @@ class TestToolInstaller(unittest.TestCase):
     def test_bin_directory_and_path(self):
         ensure_bin_in_path()
         self.assertTrue(BIN_DIR.exists())
-        self.assertIn(str(BIN_DIR), os.environ.get("PATH", ""))
+        parts = os.environ.get("PATH", "").split(os.pathsep)
+        self.assertIn(str(BIN_DIR), parts)
+        self.assertEqual(os.path.normcase(parts[0]), os.path.normcase(str(BIN_DIR)))
 
     def test_os_and_arch_detection(self):
         os_name, arch = get_current_os_and_arch()
